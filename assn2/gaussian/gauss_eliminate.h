@@ -11,7 +11,7 @@
 
 #define MIN_NUMBER 2
 #define MAX_NUMBER 50
-#define NUM_THREADS 4
+#define NUM_THREADS 1
 
 /* Matrix structure declaration */
 typedef struct {
@@ -30,6 +30,7 @@ typedef struct thread_data_s {
     int num_iter;
     float piv_element;
     Matrix *matrix;
+    int num_rows;
     pthread_barrier_t *barrier;
 } thread_data_t;
 

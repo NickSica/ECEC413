@@ -11,7 +11,7 @@
 #define THRESHOLD 1e-5      /* Threshold for convergence */
 #define MIN_NUMBER 2        /* Min number in the A and b matrices */
 #define MAX_NUMBER 10       /* Max number in the A and b matrices */
-#define NUM_THREADS 1
+#define NUM_THREADS 4
 
 /* Matrix structure declaration */
 typedef struct matrix_s {
@@ -19,6 +19,14 @@ typedef struct matrix_s {
     unsigned int num_rows;      /* Matrix height */ 
     float *elements;
 } matrix_t;
+
+typedef struct init_data_s {
+    int start;
+    int stride_size;
+    int num_elements;
+    matrix_t *x;
+    const matrix_t *B;
+} init_data_t;
 
 typedef struct thread_data_s {
     int tid;
@@ -42,6 +50,7 @@ extern void display_jacobi_solution(const matrix_t, const matrix_t, const matrix
 int check_if_diagonal_dominant(const matrix_t);
 matrix_t create_diagonally_dominant_matrix(int, int);
 void compute_using_pthreads(const matrix_t, matrix_t, const matrix_t);
+void *jacobi_init(void *args);
 void *compute_and_check(void *args);
 void print_matrix(const matrix_t);
 float get_random_number(int, int);

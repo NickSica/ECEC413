@@ -11,6 +11,8 @@
  */
 
 #include "gauss_eliminate.h"
+#include <pthread.h>
+#include <semaphore.h>
 
 int main(int argc, char **argv)
 {
@@ -91,11 +93,11 @@ void gauss_eliminate_using_pthreads(Matrix U)
     pthread_barrierattr_init(&barrier_attr);
     pthread_t *tid = malloc(NUM_THREADS * sizeof(pthread_t));
     for(int i = 0; i < U.num_rows; i++)
-    {
+    {       
 	pthread_barrier_t barrier;
 	pthread_barrier_init(&barrier, &barrier_attr, NUM_THREADS + 1);
-    
-	int start_row = i * U.num_columns + i;
+
+        int start_row = i * U.num_columns + i;
 	int end_row = (i + 1) * U.num_columns;
 	float piv_element = U.elements[start_row - 1];
 	U.elements[start_row] = 1;
@@ -104,10 +106,8 @@ void gauss_eliminate_using_pthreads(Matrix U)
 	int num_elements = size - (i + 1) * U.num_columns;
 	int chunk_size = (int)floor((float)num_elements / (float)NUM_THREADS);
     
-        
-	pthread_attr_t thread_attr;
+  	pthread_attr_t thread_attr;
 	pthread_attr_init(&thread_attr);
-
 	thread_data_t *thread_data = malloc(NUM_THREADS * sizeof(thread_data_t));
 	for(int j = 0; j < NUM_THREADS; j++)
 	{
@@ -115,10 +115,11 @@ void gauss_eliminate_using_pthreads(Matrix U)
 	    thread_data[j].div_end = end_row;
 	    thread_data[j].chunk_size = chunk_size;
 	    thread_data[j].elim_start = end_row + (chunk_size * i);
-	    thread_data[j].num_iter = i;	    
-	    thread_data[j].tid = j;	    
+	    thread_data[j].num_iter = i;
+	    thread_data[j].tid = j;
 	    thread_data[j].piv_element = piv_element;
 	    thread_data[j].matrix = &U;
+	    thread_data[j].num_rows = U.num_rows;
 	    thread_data[j].barrier = &barrier;
 	}
 	
@@ -144,36 +145,27 @@ void *gauss_reduce(void *args)
 	matrix->elements[i] = matrix->elements[i] / thread_data->piv_element;
 
     pthread_barrier_wait(thread_data->barrier);
-
+   
     // Eliminate rows (i + 1) to (n - 1)
     if(thread_data->num_iter != matrix->num_rows - 1)
     {
+	int end_row = thread_data->elim_start + thread_data->chunk_size;
+	if(thread_data->tid >= NUM_THREADS - 1)
+	    end_row = matrix->num_columns * matrix->num_rows;
+
 	float elim_val = 0;
 	int elim_row = -1;
-	if(thread_data->tid < NUM_THREADS - 1)
-	    for(int i = thread_data->elim_start; i < (thread_data->elim_start + thread_data->chunk_size); i++)
+	for(int i = thread_data->elim_start; i < end_row; i++)
+	{
+	    int new_elim_row = floor(i / matrix->num_columns);
+	    if(new_elim_row != elim_row)
 	    {
-		int new_elim_row = floor(i / matrix->num_columns);
-		if(new_elim_row != elim_row)
-		{
-		    elim_row = new_elim_row;
-		    elim_val = thread_data->piv_element / matrix->elements[elim_row * matrix->num_columns + thread_data->num_iter];
-		}
-		
-		matrix->elements[i] = matrix->elements[i] - elim_val * matrix->elements[i - matrix->num_columns];
+		elim_row = new_elim_row;
+		elim_val = thread_data->piv_element / matrix->elements[elim_row * matrix->num_columns + thread_data->num_iter];
 	    }
-	else
-	    for(int i = thread_data->elim_start; i < matrix->num_columns * matrix->num_rows; i++)
-	    {
-		int new_elim_row = floor(i / matrix->num_columns);
-		if(new_elim_row != elim_row)
-		{
-		    elim_row = new_elim_row;
-		    elim_val = thread_data->piv_element / matrix->elements[new_elim_row * matrix->num_columns + thread_data->num_iter];
-		}
-		
-		matrix->elements[i] = matrix->elements[i] - elim_val * matrix->elements[i - matrix->num_columns];
-	    }
+	    
+	    matrix->elements[i] = matrix->elements[i] - elim_val * matrix->elements[i - matrix->num_columns];
+	}
     }
 
     pthread_exit(NULL);

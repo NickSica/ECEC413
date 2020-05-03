@@ -84,14 +84,28 @@ void compute_using_pthreads (const matrix_t A, matrix_t mt_sol_x, const matrix_t
     /* Allocate n x 1 matrix to hold iteration values.*/
     matrix_t new_x = allocate_matrix(num_rows, 1, 0);      
 
-    // TODO: Parallelize
     /* Initialize current jacobi solution. */
-    for (int i = 0; i < num_rows; i++)
-        mt_sol_x.elements[i] = B.elements[i];
+    pthread_t *tid = malloc(NUM_THREADS * sizeof(pthread_t));
+    init_data_t *init_data = malloc(NUM_THREADS * sizeof(init_data_t));
+    pthread_attr_t thread_attr;
+    pthread_attr_init(&thread_attr);
+    for(int i = 0; i < NUM_THREADS; i++)
+    {
+	init_data[i].start = i;
+	init_data[i].num_elements = num_rows;
+	init_data[i].stride_size = NUM_THREADS;
+	init_data[i].x = &mt_sol_x;
+	init_data[i].B = &B;	
+    }
 
+    for(int i = 0; i < NUM_THREADS; i++)
+	pthread_create(&tid[i], &thread_attr, jacobi_init, (void *)&init_data[i]);
+
+    for(int i = 0; i < NUM_THREADS; i++)
+	pthread_join(tid[i], NULL);
+    
     /* Perform Jacobi iteration. */
     int chunk_rows = (int)floor((float)num_rows / (float)NUM_THREADS);
-    int chunk_size = chunk_rows * num_cols;
     int done = 0;
     double ssd = 0.0;
     double mse;
@@ -105,10 +119,7 @@ void compute_using_pthreads (const matrix_t A, matrix_t mt_sol_x, const matrix_t
     pthread_mutex_t ssd_lock;
     pthread_mutex_init(&ssd_lock, NULL);
     
-    pthread_t *tid = malloc(NUM_THREADS * sizeof(pthread_t));
     thread_data_t *thread_data = malloc(NUM_THREADS * sizeof(thread_data_t));
-    pthread_attr_t thread_attr;
-    pthread_attr_init(&thread_attr);
     for(int i = 0; i < NUM_THREADS; i++)
     {
 	thread_data[i].tid = i;
@@ -152,6 +163,14 @@ void compute_using_pthreads (const matrix_t A, matrix_t mt_sol_x, const matrix_t
     free(new_x.elements);
     free(tid);
     free(thread_data);
+}
+
+void *jacobi_init(void *args)
+{
+    init_data_t *thread_data = (init_data_t *)args;
+    for(int i = thread_data->start; i < thread_data->num_elements; i += thread_data->stride_size)
+	thread_data->x->elements[i] = thread_data->B->elements[i];
+    pthread_exit(NULL);
 }
 
 void *compute_and_check(void *args)
