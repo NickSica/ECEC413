@@ -1,6 +1,6 @@
 build:
-	gcc -O3 -Wall -lm -lpthread jacobi_solver.c compute_gold.c -o jacobi_solver
-	gcc -O3 -Wall -lm -lpthread gauss_eliminate.c compute_gold.c -o gauss_eliminate
+	gcc -O3 -Wall -lm -lpthread jacobi/jacobi_solver.c jacobi/compute_gold.c -o jacobi_solver
+	gcc -O3 -Wall -lm -lpthread gaussian/gauss_eliminate.c gaussian/compute_gold.c -o gauss_eliminate
 
 jacobi: build
 	./jacobi_solver 512
