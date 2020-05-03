@@ -52,17 +52,25 @@ int main(int argc, char **argv)
     print_matrix(reference_x);
 #endif
 
+	 struct timeval start, stop;
+
     /* Compute Jacobi solution using reference code */
     fprintf(stderr, "Generating solution using reference code\n");
     int max_iter = 100000; /* Maximum number of iterations to run */
+	 gettimeofday(&start, NULL);
     compute_gold(A, reference_x, B, max_iter);
+	 gettimeofday(&stop, NULL);
+	 fprintf(stderr, "Execution time = %fs\n", (float)(stop.tv_sec - start.tv_sec + (stop.tv_usec - start.tv_usec)/(float)1000000));
     display_jacobi_solution(A, reference_x, B); /* Display statistics */
 	
     /* Compute the Jacobi solution using pthreads. 
      * Solutions are returned in mt_solution_x.
      * */
     fprintf(stderr, "\nPerforming Jacobi iteration using pthreads\n");
+	 gettimeofday(&start, NULL);
     compute_using_pthreads(A, mt_solution_x, B);
+	 gettimeofday(&stop, NULL);
+	 fprintf(stderr, "Execution time = %fs\n", (float)(stop.tv_sec - start.tv_sec + (stop.tv_usec - start.tv_usec)/(float)1000000));
     display_jacobi_solution(A, mt_solution_x, B); /* Display statistics */
     
     free(A.elements); 
@@ -149,7 +157,7 @@ void compute_using_pthreads (const matrix_t A, matrix_t mt_sol_x, const matrix_t
 
 	num_iter++;
         mse = sqrt(ssd); /* Mean squared error. */
-        fprintf(stderr, "Iteration: %d. MSE = %f\n", num_iter, mse); 
+        //fprintf(stderr, "Iteration: %d. MSE = %f\n", num_iter, mse); 
         
         if ((mse <= THRESHOLD) || (num_iter == max_iter))
             done = 1;
