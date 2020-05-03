@@ -22,7 +22,7 @@ typedef struct {
 
 // Division step structure declaration
 typedef struct thread_data_s {
-    int chunk_size;
+    int chunk_rows;
     int tid;
     int div_start;
     int div_end;
@@ -30,7 +30,6 @@ typedef struct thread_data_s {
     int num_iter;
     float piv_element;
     Matrix *matrix;
-    int num_rows;
     pthread_barrier_t *barrier;
 } thread_data_t;
 

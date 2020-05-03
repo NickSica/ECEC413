@@ -1,5 +1,5 @@
 /* Gaussian elimination code.
- * 
+ *
  * Author: Naga Kandasamy
  * Date of last update: April 22, 2020
  *
@@ -88,43 +88,38 @@ int main(int argc, char **argv)
 /* Perform gaussian elimination using pthreads */
 void gauss_eliminate_using_pthreads(Matrix U)
 {
-    int size = U.num_rows * U.num_columns;
     pthread_barrierattr_t barrier_attr;
     pthread_barrierattr_init(&barrier_attr);
     pthread_t *tid = malloc(NUM_THREADS * sizeof(pthread_t));
+    pthread_attr_t thread_attr;
+    pthread_attr_init(&thread_attr);
     for(int i = 0; i < U.num_rows; i++)
-    {       
-	pthread_barrier_t barrier;
-	pthread_barrier_init(&barrier, &barrier_attr, NUM_THREADS + 1);
-
+    {
+	int chunk_rows = U.num_rows / NUM_THREADS;
         int start_row = i * U.num_columns + i;
 	int end_row = (i + 1) * U.num_columns;
-	float piv_element = U.elements[start_row - 1];
+	float piv_element = U.elements[start_row];
 	U.elements[start_row] = 1;
 	start_row++;
-	    
-	int num_elements = size - (i + 1) * U.num_columns;
-	int chunk_size = (int)floor((float)num_elements / (float)NUM_THREADS);
-    
-  	pthread_attr_t thread_attr;
-	pthread_attr_init(&thread_attr);
+
+	pthread_barrier_t barrier;
+	pthread_barrier_init(&barrier, &barrier_attr, NUM_THREADS + 1);
 	thread_data_t *thread_data = malloc(NUM_THREADS * sizeof(thread_data_t));
 	for(int j = 0; j < NUM_THREADS; j++)
 	{
 	    thread_data[j].div_start = start_row + j;
 	    thread_data[j].div_end = end_row;
-	    thread_data[j].chunk_size = chunk_size;
-	    thread_data[j].elim_start = end_row + (chunk_size * i);
+	    thread_data[j].chunk_rows = chunk_rows;
+	    thread_data[j].elim_start = i + 1 + (j * chunk_rows);
 	    thread_data[j].num_iter = i;
 	    thread_data[j].tid = j;
 	    thread_data[j].piv_element = piv_element;
 	    thread_data[j].matrix = &U;
-	    thread_data[j].num_rows = U.num_rows;
 	    thread_data[j].barrier = &barrier;
 	}
 	
 	for(int j = 0; j < NUM_THREADS; j++)
-	    pthread_create(&tid[j], &thread_attr, gauss_reduce, (void *)&thread_data);
+	    pthread_create(&tid[j], &thread_attr, gauss_reduce, (void *)&thread_data[j]);
 
         pthread_barrier_wait(&barrier);
 
@@ -147,25 +142,13 @@ void *gauss_reduce(void *args)
     pthread_barrier_wait(thread_data->barrier);
    
     // Eliminate rows (i + 1) to (n - 1)
-    if(thread_data->num_iter != matrix->num_rows - 1)
+    int num_elements = matrix->num_rows;
+    for (int i = (thread_data->num_iter + 1); i < num_elements; i++)
     {
-	int end_row = thread_data->elim_start + thread_data->chunk_size;
-	if(thread_data->tid >= NUM_THREADS - 1)
-	    end_row = matrix->num_columns * matrix->num_rows;
-
-	float elim_val = 0;
-	int elim_row = -1;
-	for(int i = thread_data->elim_start; i < end_row; i++)
-	{
-	    int new_elim_row = floor(i / matrix->num_columns);
-	    if(new_elim_row != elim_row)
-	    {
-		elim_row = new_elim_row;
-		elim_val = thread_data->piv_element / matrix->elements[elim_row * matrix->num_columns + thread_data->num_iter];
-	    }
-	    
-	    matrix->elements[i] = matrix->elements[i] - elim_val * matrix->elements[i - matrix->num_columns];
-	}
+	for (int j = (thread_data->num_iter + 1); j < num_elements; j++)
+	    matrix->elements[num_elements * i + j] = matrix->elements[num_elements * i + j] - (matrix->elements[num_elements * i + thread_data->num_iter] * matrix->elements[num_elements * thread_data->num_iter + j]);
+            
+	matrix->elements[num_elements * i + thread_data->num_iter] = 0;
     }
 
     pthread_exit(NULL);
@@ -177,7 +160,7 @@ int check_results(float *A, float *B, int size, float tolerance)
     int i;
     for (i = 0; i < size; i++)
         if(fabsf(A[i] - B[i]) > tolerance)
-            return -1;
+	    return -1;
     return 0;
 }
 
