@@ -29,7 +29,7 @@ void compute_gold(const matrix_t A, matrix_t x, const matrix_t B, int max_iter)
                 if (i != j)
                     sum += A.elements[i * num_cols + j] * x.elements[j];
             }
-           
+
             /* Update values for the unkowns for the current row. */
             new_x.elements[i] = (B.elements[i] - sum)/A.elements[i * num_cols + i];
         }
