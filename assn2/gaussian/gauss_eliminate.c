@@ -150,7 +150,6 @@ void *gauss_reduce(void *args)
     {
 	float elim_val = 0;
 	int elim_row = -1;
-	Matrix *matrix = thread_data->matrix;
 	if(thread_data->tid < NUM_THREADS - 1)
 	    for(int i = thread_data->elim_start; i < (thread_data->elim_start + thread_data->chunk_size); i++)
 	    {
