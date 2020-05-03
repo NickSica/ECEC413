@@ -21,29 +21,17 @@ typedef struct {
 } Matrix;
 
 // Division step structure declaration
-typedef struct divide_data_s {
-    int size;
-    int start;
-    int end;
-    float piv_element;
-    float *elements;
-    pthread_barrier_t *barrier;
-} divide_data_t;
-
-// Elimination step structure declaration
-typedef struct elim_data_s {
-    int tid;
+typedef struct thread_data_s {
     int chunk_size;
-    int start;
+    int tid;
+    int div_start;
+    int div_end;
+    int elim_start;
     int num_iter;
     float piv_element;
-    //    unsigned int num_columns;
-    //
-    // unsigned int num_rows;
-//    float *elements;
     Matrix *matrix;
     pthread_barrier_t *barrier;
-} elim_data_t;
+} thread_data_t;
 
 /* Function prototypes */
 extern int compute_gold(float *, int);
@@ -53,8 +41,6 @@ int perform_simple_check(const Matrix);
 void print_matrix(const Matrix);
 float get_random_number(int, int);
 int check_results(float *, float *, int, float);
-void *divide(void *args);
-void *eliminate(void *args);
+void *gauss_reduce(void *args);
 
 #endif /* _MATRIXMUL_H_ */
-

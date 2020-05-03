@@ -88,108 +88,96 @@ void gauss_eliminate_using_pthreads(Matrix U)
 {
     int size = U.num_rows * U.num_columns;
     pthread_barrierattr_t barrier_attr;
-    pthread_barrierattr_init(&barrier_attr);	
+    pthread_barrierattr_init(&barrier_attr);
+    pthread_t *tid = malloc(NUM_THREADS * sizeof(pthread_t));
     for(int i = 0; i < U.num_rows; i++)
     {
-	pthread_barrier_t div_barrier;
-	pthread_barrier_init(&div_barrier, &barrier_attr, NUM_THREADS + 1);
+	pthread_barrier_t barrier;
+	pthread_barrier_init(&barrier, &barrier_attr, NUM_THREADS + 1);
     
 	int start_row = i * U.num_columns + i;
 	int end_row = (i + 1) * U.num_columns;
 	float piv_element = U.elements[start_row - 1];
 	U.elements[start_row] = 1;
 	start_row++;
-
-        // Divide row i with the pivot element
-        pthread_t *tid = malloc(NUM_THREADS * sizeof(pthread_t));
+	    
+	int num_elements = size - (i + 1) * U.num_columns;
+	int chunk_size = (int)floor((float)num_elements / (float)NUM_THREADS);
+    
+        
 	pthread_attr_t thread_attr;
 	pthread_attr_init(&thread_attr);
 
-	divide_data_t *div_data = malloc(NUM_THREADS * sizeof(divide_data_t));
+	thread_data_t *thread_data = malloc(NUM_THREADS * sizeof(thread_data_t));
 	for(int j = 0; j < NUM_THREADS; j++)
 	{
-	    div_data[j].start = start_row + j;
-	    div_data[j].end = end_row;
-	    div_data[j].piv_element = piv_element;
-	    div_data[j].elements = U.elements;
-	    div_data[j].barrier = &div_barrier;
+	    thread_data[j].div_start = start_row + j;
+	    thread_data[j].div_end = end_row;
+	    thread_data[j].chunk_size = chunk_size;
+	    thread_data[j].elim_start = end_row + (chunk_size * i);
+	    thread_data[j].num_iter = i;	    
+	    thread_data[j].tid = j;	    
+	    thread_data[j].piv_element = piv_element;
+	    thread_data[j].matrix = &U;
+	    thread_data[j].barrier = &barrier;
 	}
-	    
-	for(int j = 0; j < NUM_THREADS; j++)
-	    pthread_create(&tid[j], &thread_attr, divide, (void *)&div_data[j]);
-
-	pthread_barrier_wait(&div_barrier);
 	
-	// Don't do elimination if we are at the last row
-	if(i != U.num_rows - 1)
-	{
-	    // Eliminate rows (i + 1) to (n - 1)
-	    pthread_barrier_t elim_barrier;
-	    pthread_barrier_init(&elim_barrier, &barrier_attr, NUM_THREADS + 1);
-	    
-	    int num_elements = size - (i + 1) * U.num_columns;
-	    int chunk_size = (int)floor((float)num_elements / (float)NUM_THREADS);
-	    elim_data_t *elim_data = malloc(NUM_THREADS * sizeof(elim_data_t));
-	    for(int j = 0; j < NUM_THREADS; j++)
-	    {
-		elim_data[j].tid = j;
-		elim_data[j].chunk_size = chunk_size;
-		elim_data[j].start = end_row + (chunk_size * i);
-		elim_data[j].num_iter = i;
-		elim_data[j].piv_element = piv_element;
-		elim_data[j].matrix = &U;
-		elim_data[j].barrier = &elim_barrier;
-	    }
+	for(int j = 0; j < NUM_THREADS; j++)
+	    pthread_create(&tid[j], &thread_attr, gauss_reduce, (void *)&thread_data);
 
-            for(int j = 0; j < NUM_THREADS; j++)
-		pthread_create(&tid[j], &thread_attr, eliminate, (void *)&elim_data[j]);
-	    
-	    pthread_barrier_wait(&elim_barrier);
-	}
+        pthread_barrier_wait(&barrier);
+
+	for(int i = 0; i < NUM_THREADS; i++)
+	    pthread_join(tid[i], NULL);
+	free(thread_data);
     }
+
+    free(tid);
 }
 
-void *divide(void *args)
+void *gauss_reduce(void *args)
 {
-    divide_data_t *thread_data = (divide_data_t *)args;
-    for(int i = thread_data->start; i < thread_data->end; i += NUM_THREADS)
-	thread_data->elements[i] = thread_data->elements[i] / thread_data->piv_element;
-
-    pthread_barrier_wait(thread_data->barrier);
-}
-
-void *eliminate(void *args)
-{
-    elim_data_t *thread_data = (elim_data_t *)args;
-    float elim_val = 0;
-    int elim_row = -1;
+    // Divide row i with the pivot element
+    thread_data_t *thread_data = (thread_data_t *)args;
     Matrix *matrix = thread_data->matrix;
-    if(thread_data->tid < NUM_THREADS - 1)
-	for(int i = thread_data->start; i < (thread_data->start + thread_data->chunk_size); i++)
-	{
-	    int new_elim_row = floor(i / matrix->num_columns);
-	    if(new_elim_row != elim_row)
-	    {
-		elim_row = new_elim_row;
-		elim_val = thread_data->piv_element / matrix->elements[elim_row * matrix->num_columns + thread_data->num_iter];
-	    }
+    for(int i = thread_data->div_start; i < thread_data->div_end; i += NUM_THREADS)
+	matrix->elements[i] = matrix->elements[i] / thread_data->piv_element;
 
-	    matrix->elements[i] = matrix->elements[i] - elim_val * matrix->elements[i - matrix->num_columns];
-	}
-    else
-	for(int i = thread_data->start; i < matrix->num_columns * matrix->num_rows; i++)
-	{
-	    int new_elim_row = floor(i / matrix->num_columns);
-	    if(new_elim_row != elim_row)
-	    {
-		elim_row = new_elim_row;
-		elim_val = thread_data->piv_element / matrix->elements[new_elim_row * matrix->num_columns + thread_data->num_iter];
-	    }
-
-	    matrix->elements[i] = matrix->elements[i] - elim_val * matrix->elements[i - matrix->num_columns];
-	}
-    
     pthread_barrier_wait(thread_data->barrier);
+
+    // Eliminate rows (i + 1) to (n - 1)
+    if(thread_data->num_iter != matrix->num_rows - 1)
+    {
+	float elim_val = 0;
+	int elim_row = -1;
+	Matrix *matrix = thread_data->matrix;
+	if(thread_data->tid < NUM_THREADS - 1)
+	    for(int i = thread_data->elim_start; i < (thread_data->elim_start + thread_data->chunk_size); i++)
+	    {
+		int new_elim_row = floor(i / matrix->num_columns);
+		if(new_elim_row != elim_row)
+		{
+		    elim_row = new_elim_row;
+		    elim_val = thread_data->piv_element / matrix->elements[elim_row * matrix->num_columns + thread_data->num_iter];
+		}
+		
+		matrix->elements[i] = matrix->elements[i] - elim_val * matrix->elements[i - matrix->num_columns];
+	    }
+	else
+	    for(int i = thread_data->elim_start; i < matrix->num_columns * matrix->num_rows; i++)
+	    {
+		int new_elim_row = floor(i / matrix->num_columns);
+		if(new_elim_row != elim_row)
+		{
+		    elim_row = new_elim_row;
+		    elim_val = thread_data->piv_element / matrix->elements[new_elim_row * matrix->num_columns + thread_data->num_iter];
+		}
+		
+		matrix->elements[i] = matrix->elements[i] - elim_val * matrix->elements[i - matrix->num_columns];
+	    }
+    }
+
+    pthread_exit(NULL);
 }
 
 /* Check if results generated by single threaded and multi threaded versions match within tolerance */

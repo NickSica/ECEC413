@@ -150,6 +150,8 @@ void compute_using_pthreads (const matrix_t A, matrix_t mt_sol_x, const matrix_t
         fprintf(stderr, "\nMaximum allowed iterations reached\n");
 
     free(new_x.elements);
+    free(tid);
+    free(thread_data);
 }
 
 void *compute_and_check(void *args)
