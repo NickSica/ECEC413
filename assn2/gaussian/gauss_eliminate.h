@@ -11,7 +11,7 @@
 
 #define MIN_NUMBER 2
 #define MAX_NUMBER 50
-#define NUM_THREADS 1
+#define NUM_THREADS 8
 
 /* Matrix structure declaration */
 typedef struct {

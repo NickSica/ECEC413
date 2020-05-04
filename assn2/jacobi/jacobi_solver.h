@@ -6,13 +6,13 @@
 #include <stdio.h>
 #include <time.h>
 #include <string.h>
+#include <sys/time.h>
 #include <math.h>
 
 #define THRESHOLD 1e-5      /* Threshold for convergence */
 #define MIN_NUMBER 2        /* Min number in the A and b matrices */
 #define MAX_NUMBER 10       /* Max number in the A and b matrices */
-#define NUM_THREADS 4
-
+#define NUM_THREADS 8
 
 /* Matrix structure declaration */
 typedef struct matrix_s {
