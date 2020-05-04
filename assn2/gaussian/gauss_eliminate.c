@@ -43,14 +43,14 @@ int main(int argc, char **argv)
         }
     }
 
-    fprintf(stderr, "\nPerforming gaussian elimination using reference code\n");
+    //fprintf(stderr, "\nPerforming gaussian elimination using reference code\n");
     struct timeval start, stop;
-    gettimeofday(&start, NULL);
+    //gettimeofday(&start, NULL);
     
     int status = compute_gold(U_reference.elements, A.num_rows);
   
-    gettimeofday(&stop, NULL);
-    fprintf(stderr, "CPU run time = %0.2f s\n", (float)(stop.tv_sec - start.tv_sec\
+    //gettimeofday(&stop, NULL);
+    //fprintf(stderr, "CPU run time = %0.2f s\n", (float)(stop.tv_sec - start.tv_sec\
                 + (stop.tv_usec - start.tv_usec) / (float)1000000));
 
     if (status < 0) {
@@ -68,8 +68,10 @@ int main(int argc, char **argv)
     /* FIXME: Perform Gaussian elimination using pthreads. 
      * The resulting upper triangular matrix should be returned in U_mt */
     fprintf(stderr, "\nPerforming gaussian elimination using pthreads\n");
+	 gettimeofday(&start, NULL);
     gauss_eliminate_using_pthreads(U_mt);
-
+	 gettimeofday(&stop, NULL);
+	 fprintf(stderr, "CPU run time = %0.2f s\n", (float)(stop.tv_sec - start.tv_sec + (stop.tv_usec - start.tv_usec)/(float)1000000));
     /* Check if pthread result matches reference solution within specified tolerance */
     fprintf(stderr, "\nChecking results\n");
     int size = matrix_size * matrix_size;
@@ -143,7 +145,11 @@ void *gauss_reduce(void *args)
    
     // Eliminate rows (i + 1) to (n - 1)
     int num_elements = matrix->num_rows;
-    for (int i = (thread_data->num_iter + 1); i < num_elements; i++)
+	 int elim_end = thread_data->num_iter + 1 + ((thread_data->tid + 1) * thread_data->chunk_rows);
+	 if (elim_end > num_elements){
+		elim_end = num_elements;
+	 }
+    for (int i = thread_data->elim_start; i < elim_end; i++)
     {
 	for (int j = (thread_data->num_iter + 1); j < num_elements; j++)
 	    matrix->elements[num_elements * i + j] = matrix->elements[num_elements * i + j] - (matrix->elements[num_elements * i + thread_data->num_iter] * matrix->elements[num_elements * thread_data->num_iter + j]);

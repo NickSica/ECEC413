@@ -13,6 +13,7 @@
 #define MAX_NUMBER 10       /* Max number in the A and b matrices */
 #define NUM_THREADS 4
 
+
 /* Matrix structure declaration */
 typedef struct matrix_s {
     unsigned int num_columns;   /* Matrix width */

@@ -57,11 +57,11 @@ int main(int argc, char **argv)
     /* Compute Jacobi solution using reference code */
     fprintf(stderr, "Generating solution using reference code\n");
     int max_iter = 100000; /* Maximum number of iterations to run */
-	 gettimeofday(&start, NULL);
-    compute_gold(A, reference_x, B, max_iter);
-	 gettimeofday(&stop, NULL);
-	 fprintf(stderr, "Execution time = %fs\n", (float)(stop.tv_sec - start.tv_sec + (stop.tv_usec - start.tv_usec)/(float)1000000));
-    display_jacobi_solution(A, reference_x, B); /* Display statistics */
+	 //gettimeofday(&start, NULL);
+    //compute_gold(A, reference_x, B, max_iter);
+	 //gettimeofday(&stop, NULL);
+	 //fprintf(stderr, "Execution time = %fs\n", (float)(stop.tv_sec - start.tv_sec + (stop.tv_usec - start.tv_usec)/(float)1000000));
+    //display_jacobi_solution(A, reference_x, B); /* Display statistics */
 	
     /* Compute the Jacobi solution using pthreads. 
      * Solutions are returned in mt_solution_x.
