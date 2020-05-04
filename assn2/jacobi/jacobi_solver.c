@@ -52,7 +52,7 @@ int main(int argc, char **argv)
     print_matrix(reference_x);
 #endif
 
-	 struct timeval start, stop;
+    struct timeval start, stop;
 
     /* Compute Jacobi solution using reference code */
     fprintf(stderr, "Generating solution using reference code\n");
