@@ -1,5 +1,5 @@
 build:
-	gcc --std=gun99 -O3 -lpthread -std=c99 saxpy.c -o saxpy
+	gcc -std=gnu99 -O3 -lm -lpthread saxpy.c -o saxpy
 
 run: build
 	./saxpy 7 2
