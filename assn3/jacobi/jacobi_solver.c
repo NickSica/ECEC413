@@ -84,67 +84,51 @@ int main(int argc, char **argv)
  * Result must be placed in mt_sol_x. */
 void compute_using_openmp(const matrix_t A, matrix_t mt_sol_x, const matrix_t B)
 {
-    int max_iter = 100000;
     int num_rows = A.num_rows;
     int num_cols = A.num_columns;
 
     /* Allocate n x 1 matrix to hold iteration values.*/
-    matrix_t new_x = allocate_matrix(num_rows, 1, 0);
-
-    /* Initialize current jacobi solution. */
-    int num_threads;
-#pragma omp parallel shared(mt_sol_x, B, num_rows, num_threads)
-    {
-	num_threads = omp_get_num_threads();
-	int tid = omp_get_thread_num();
-#pragma omp for nowait
-	for(int i = tid; i < num_rows; i += num_threads)
-	    mt_sol_x.elements[i] = B.elements[i];
-    }
+    matrix_t new_x = allocate_matrix(num_rows, 1, 0);      
     
+    /* Initialize current jacobi solution. */
+#pragma omp parallel for
+    for(int i = 0; i < num_rows; i++)
+        mt_sol_x.elements[i] = B.elements[i];
+
     /* Perform Jacobi iteration. */
-    int chunk_rows = (int)floor((float)num_rows / (float)num_threads);
     int done = 0;
     double ssd, mse;
     int num_iter = 0;
-    while(!done)
-    {
-	ssd = 0.0;
-#pragma omp parallel shared(A, mt_sol_x, B, num_rows, num_cols, new_x, chunk_rows, num_threads) reduction(+: ssd)
-	{
-	    int tid = omp_get_thread_num();
-	    int start_row = tid * chunk_rows;
-	    int end_row = start_row + chunk_rows;
-	    if(tid >= num_threads - 1)
-		end_row = num_rows;
-
-#pragma omp for
-	    for(int i = start_row; i < end_row; i++)
-	    {
-		double sum = 0.0;
-		for(int j = 0; j < num_cols; j++)
-		    if(i != j)
-			sum += A.elements[i * num_cols + j] * mt_sol_x.elements[j];
-
-		/* Update values for the unkowns for the current row. */
-		new_x.elements[i] = (B.elements[i] - sum) / A.elements[i * num_cols + i];
-	    }
+    int max_iter = 100000;
     
-#pragma omp barrier
-
-	    /* Check for convergence and update the unknowns. */
-#pragma omp for
-	    for(int i = start_row; i < end_row; i++)
+    while (!done)
+    {
+#pragma omp parallel for collapse(1)
+        for (int i = 0; i < num_rows; i++)
+	{
+            double sum = 0.0;
+            for (int j = 0; j < num_cols; j++)
 	    {
-		ssd += (new_x.elements[i] - mt_sol_x.elements[i]) * (new_x.elements[i] - mt_sol_x.elements[i]);
-		mt_sol_x.elements[i] = new_x.elements[i];
-	    }
-	}
+                if (i != j)
+                    sum += A.elements[i * num_cols + j] * mt_sol_x.elements[j];
+            }
+
+            /* Update values for the unkowns for the current row. */
+            new_x.elements[i] = (B.elements[i] - sum)/A.elements[i * num_cols + i];
+        }
+
+        /* Check for convergence and update the unknowns. */
+        ssd = 0.0;
+#pragma omp parallel for reduction(+: ssd)
+        for (int i = 0; i < num_rows; i++)
+	{
+            ssd += (new_x.elements[i] - mt_sol_x.elements[i]) * (new_x.elements[i] - mt_sol_x.elements[i]);
+            mt_sol_x.elements[i] = new_x.elements[i];
+        }
 	
-	num_iter++;
+        num_iter++;
         mse = sqrt(ssd); /* Mean squared error. */
-        if(ITER_OUTPUT)
-	    fprintf(stderr, "Iteration: %d. MSE = %f\n", num_iter, mse); 
+	if(ITER_OUTPUT) fprintf(stderr, "Iteration: %d. MSE = %f\n", num_iter, mse); 
         
         if ((mse <= THRESHOLD) || (num_iter == max_iter))
             done = 1;
@@ -154,7 +138,7 @@ void compute_using_openmp(const matrix_t A, matrix_t mt_sol_x, const matrix_t B)
         fprintf(stderr, "\nConvergence achieved after %d iterations\n", num_iter);
     else
         fprintf(stderr, "\nMaximum allowed iterations reached\n");
-    
+
     free(new_x.elements);
 }
 

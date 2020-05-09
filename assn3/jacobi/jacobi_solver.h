@@ -14,7 +14,7 @@
 #define THRESHOLD 1e-5      /* Threshold for convergence */
 #define MIN_NUMBER 2        /* Min number in the A and b matrices */
 #define MAX_NUMBER 10       /* Max number in the A and b matrices */
-#define ITER_OUTPUT 1
+#define ITER_OUTPUT 0
 
 /* Matrix structure declaration */
 typedef struct matrix_s {
