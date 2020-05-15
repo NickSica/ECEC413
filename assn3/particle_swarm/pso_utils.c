@@ -134,19 +134,15 @@ int pso_get_best_fitness(swarm_t *swarm)
     float best_fitness = INFINITY;
 
     g = -1;
-#pragma omp parallel for
+#pragma omp parallel for ordered
     for(i = 0; i < swarm->num_particles; i++)
     {
+#pragma omp ordered
 	if(swarm->particle[i].fitness < best_fitness)
-#pragma omp critical
-	    {
-		if(swarm->particle[i].fitness < best_fitness)
-		{
-
-		    best_fitness = swarm->particle[i].fitness;
-		    g = i;
-		}
-	    }
+	{
+	    best_fitness = swarm->particle[i].fitness;
+	    g = i;
+	}
     }
     return g;
 }
