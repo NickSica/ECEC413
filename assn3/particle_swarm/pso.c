@@ -12,11 +12,12 @@
  * Date created: April 30, 2020
  * Date modified: May 4, 2020 
  *
- * Student/team: FIXME
- * Date: FIXME
+ * Student/team: Nicholas Sica and Cameron Calv
+ * Date: 5/13/2020
  */  
 #include <stdio.h>
 #include <stdlib.h>
+#include <omp.h>
 #include "pso.h"
 
 int main(int argc, char **argv)
@@ -40,6 +41,8 @@ int main(int argc, char **argv)
     int max_iter = atoi(argv[6]);
     int num_threads = atoi(argv[7]);
 
+    omp_set_num_threads(num_threads);
+    
     /* Optimize using reference version */
     int status;
     status = optimize_gold(function, dim, swarm_size, xmin, xmax, max_iter);

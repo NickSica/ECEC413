@@ -103,15 +103,14 @@ void compute_using_openmp(const matrix_t A, matrix_t mt_sol_x, const matrix_t B)
     
     while (!done)
     {
-#pragma omp parallel for collapse(1)
+#pragma omp parallel for
         for (int i = 0; i < num_rows; i++)
 	{
-            double sum = 0.0;
+	    double sum = 0.0;
+#pragma omp parallel for reduction(+: sum)	    
             for (int j = 0; j < num_cols; j++)
-	    {
                 if (i != j)
                     sum += A.elements[i * num_cols + j] * mt_sol_x.elements[j];
-            }
 
             /* Update values for the unkowns for the current row. */
             new_x.elements[i] = (B.elements[i] - sum)/A.elements[i * num_cols + i];
