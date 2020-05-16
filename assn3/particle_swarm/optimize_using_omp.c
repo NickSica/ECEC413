@@ -21,58 +21,62 @@ int compute_using_omp(char *function, swarm_t *swarm, float xmax, float xmin, in
     float c2 = 1.49;
     int g = -1;
     int iter = 0;
+    unsigned seed;
+
     while(iter < max_iter)
     {
-        // Particle loop
-#pragma omp parallel for
-        for(int i = 0; i < swarm->num_particles; i++)
+	// Particle loop
+#pragma omp parallel private(seed)
 	{
-            particle = &swarm->particle[i];
+	    seed = time(NULL) + omp_get_num_threads();
+#pragma omp for
+            for(int i = 0; i < swarm->num_particles; i++)
+	    {
+		particle = &swarm->particle[i];
 	    
-	    // Best performing particle from last iteration
-            gbest = &swarm->particle[particle->g];
-
-            // Update particle's state
-#pragma omp parallel for
-	    for(int j = 0; j < particle->dim; j++)
-	    {
-                r1 = (float)rand() / (float)RAND_MAX;
-                r2 = (float)rand() / (float)RAND_MAX;
-
-	        // Update particle velocity
-                particle->v[j] = w * particle->v[j] \
-                                 + c1 * r1 * (particle->pbest[j] - particle->x[j]) \
-                                 + c2 * r2 * (gbest->x[j] - particle->x[j]);
-
-		// Clamp velocity
-                if((particle->v[j] < -fabsf(xmax - xmin)) || (particle->v[j] > fabsf(xmax - xmin))) 
-                    particle->v[j] = uniform(-fabsf(xmax - xmin), fabsf(xmax - xmin));
-
-                // Update particle position
-                particle->x[j] = particle->x[j] + particle->v[j];
-                if(particle->x[j] > xmax)
-                    particle->x[j] = xmax;
-
-                if(particle->x[j] < xmin)
-                    particle->x[j] = xmin;
-            }
-            
-            pso_eval_fitness(function, particle, &curr_fitness);
-
-            // Update pbest
-            if(curr_fitness < particle->fitness)
-	    {
-                particle->fitness = curr_fitness;
+		// Best performing particle from last iteration
+		gbest = &swarm->particle[particle->g];
 		
+		// Update particle's state
+		for(int j = 0; j < particle->dim; j++)
+		{
+		    r1 = (float)rand_r(&seed) / (float)RAND_MAX;
+		    r2 = (float)rand_r(&seed) / (float)RAND_MAX;
+		    
+		    // Update particle velocity
+		    particle->v[j] = w * particle->v[j]			\
+			+ c1 * r1 * (particle->pbest[j] - particle->x[j]) \
+			+ c2 * r2 * (gbest->x[j] - particle->x[j]);
+		    
+		    // Clamp velocity
+		    if((particle->v[j] < -fabsf(xmax - xmin)) || (particle->v[j] > fabsf(xmax - xmin))) 
+			particle->v[j] = uniform(-fabsf(xmax - xmin), fabsf(xmax - xmin));
+		    
+		    // Update particle position
+		    particle->x[j] = particle->x[j] + particle->v[j];
+		    if(particle->x[j] > xmax)
+			particle->x[j] = xmax;
+		    
+		    if(particle->x[j] < xmin)
+			particle->x[j] = xmin;
+		}
+		
+		pso_eval_fitness(function, particle, &curr_fitness);
+		
+		// Update pbest
+		if(curr_fitness < particle->fitness)
+		{
+		    particle->fitness = curr_fitness;
+		    for(int j = 0; j < particle->dim; j++)
+			particle->pbest[j] = particle->x[j];
+		}
+	    }
+	}
+	
+	// Identify best performing particle
+	g = pso_get_best_fitness(swarm);
+	
 #pragma omp parallel for
-                for(int j = 0; j < particle->dim; j++)
-                    particle->pbest[j] = particle->x[j];
-            }
-        }
-
-        // Identify best performing particle
-        g = pso_get_best_fitness(swarm);
- #pragma omp parallel for
 	for(int i = 0; i < swarm->num_particles; i++)
 	{
 	    particle = &swarm->particle[i];
@@ -80,14 +84,13 @@ int compute_using_omp(char *function, swarm_t *swarm, float xmax, float xmin, in
 	}
 	
 #ifdef SIMPLE_DEBUG
-        // Print best performing particle
-        fprintf(stderr, "\nIteration %d:\n", iter);
-        pso_print_particle(&swarm->particle[g]);
+	// Print best performing particle
+	fprintf(stderr, "\nIteration %d:\n", iter);
+	pso_print_particle(&swarm->particle[g]);
 #endif
-    	
 	iter++;
     }
-
+    
     return g;
 }
 

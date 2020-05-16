@@ -17,6 +17,7 @@
  */  
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/time.h>
 #include <omp.h>
 #include "pso.h"
 
@@ -42,24 +43,32 @@ int main(int argc, char **argv)
     int num_threads = atoi(argv[7]);
 
     omp_set_num_threads(num_threads);
-    
+
+    float exec_time;
+    struct timeval start, stop;
     /* Optimize using reference version */
     int status;
+    gettimeofday(&start, NULL);
     status = optimize_gold(function, dim, swarm_size, xmin, xmax, max_iter);
-    if (status < 0) {
+    gettimeofday(&stop, NULL);
+    if (status < 0)
+    {
         fprintf(stderr, "Error optimizing function using reference code\n");
         exit (EXIT_FAILURE);
     }
+    exec_time = (float)(stop.tv_sec - start.tv_sec + (stop.tv_usec - start.tv_usec) / (float)1000000);
+    printf("Gold Execution Time: %f\n", exec_time); 
 
-    /* FIXME: Complete this function to perform PSO using OpenMP. 
-     * Return -1 on error, 0 on success. Print best-performing 
-     * particle within the function prior to returning. 
-     */
+    // OpenMP Version
+    gettimeofday(&start, NULL);
     status = optimize_using_omp(function, dim, swarm_size, xmin, xmax, max_iter, num_threads);
+    gettimeofday(&stop, NULL);
     if (status < 0) {
         fprintf(stderr, "Error optimizing function using OpenMP\n");
         exit (EXIT_FAILURE);
     }
+    exec_time = (float)(stop.tv_sec - start.tv_sec + (stop.tv_usec - start.tv_usec) / (float)1000000);
+    printf("OMP Execution Time: %f\n", exec_time);
     
     exit(EXIT_SUCCESS);
 }

@@ -20,7 +20,7 @@ int pso_solve_gold(char *function, swarm_t *swarm,
     float r1, r2;
     float curr_fitness;
     particle_t *particle, *gbest;
-
+    
     w = 0.79;
     c1 = 1.49;
     c2 = 1.49;

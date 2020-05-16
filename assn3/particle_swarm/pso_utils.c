@@ -11,8 +11,8 @@
 /* Return a random number uniformly distributed between [min, max] */
 float uniform(float min, float max)
 {
-    float normalized; 
-    normalized = (float)rand()/(float)RAND_MAX;
+    float normalized;
+    normalized = (float)rand() / (float)RAND_MAX;
     return (min + normalized * (max - min));
 }
 
@@ -216,32 +216,34 @@ swarm_t *pso_init(char *function, int dim, int swarm_size,
     if(swarm->particle == NULL)
         return NULL;
 
-#pragma omp parallel for reduction(min: return_status)
-    for(int i = 0; i < swarm->num_particles; i++)
+#pragma omp parallel
     {
-        particle_t *particle = &swarm->particle[i];
-        particle->dim = dim;
-	
-        // Generate random particle position, velocity, and initialize best position
-        particle->x = (float *)malloc(dim * sizeof(float));
-	particle->v = (float *)malloc(dim * sizeof(float));
-        particle->pbest = (float *)malloc(dim * sizeof(float));
-#pragma omp parallel for
-	for(int j = 0; j < dim; j++)
+#pragma omp for reduction(min: return_status)
+	for(int i = 0; i < swarm->num_particles; i++)
 	{
-	    particle->x[j] = uniform(xmin, xmax);
-	    particle->v[j] = uniform(-fabsf(xmax - xmin), fabsf(xmax - xmin));
-	    particle->pbest[j] = particle->x[j];
-	}
+	    particle_t *particle = &swarm->particle[i];
+	    particle->dim = dim;
 	    
-        /* Initialize particle fitness */
-        status = pso_eval_fitness(function, particle, &fitness);
-        if(status < 0)
-            return_status = status;
-        particle->fitness = fitness;
-
-        /* Initialize inex of best performing particle */
-        particle->g = -1;
+	    // Generate random particle position, velocity, and initialize best position
+	    particle->x = (float *)malloc(dim * sizeof(float));
+	    particle->v = (float *)malloc(dim * sizeof(float));
+	    particle->pbest = (float *)malloc(dim * sizeof(float));
+	    for(int j = 0; j < dim; j++)
+	    {
+		particle->x[j] = uniform(xmin, xmax);
+		particle->v[j] = uniform(-fabsf(xmax - xmin), fabsf(xmax - xmin));
+		particle->pbest[j] = particle->x[j];
+	    }
+	    
+	    /* Initialize particle fitness */
+	    status = pso_eval_fitness(function, particle, &fitness);
+	    if(status < 0)
+		return_status = status;
+	    particle->fitness = fitness;
+	
+	    /* Initialize inex of best performing particle */
+	    particle->g = -1;
+        }
     }
 
     if(return_status < 0)
