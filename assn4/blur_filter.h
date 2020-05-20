@@ -3,6 +3,7 @@
 
 /* Define the half-width of the box blur filter. */
 #define BLUR_SIZE 1
+#define THREAD_SIZE 32
 
 /* Define the structure for our image or 2D array. */
 typedef struct image_s {

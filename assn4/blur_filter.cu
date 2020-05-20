@@ -24,6 +24,9 @@
 
 extern "C" void compute_gold(const image_t, image_t);
 void compute_on_device(const image_t, image_t);
+image_t allocate_on_device(image_t);
+void copy_to_device(image_t, image_t);
+void copy_from_device(image_t, image_t);
 int check_results(const float *, const float *, int, float);
 void print_image(const image_t);
 
@@ -64,7 +67,7 @@ int main(int argc, char **argv)
    print_image(out_gold);
 #endif
 
-   /* FIXME: Calculate the blur on the GPU. The result is stored in out_gpu. */
+   /* Calculates the blur on the GPU. The result is stored in out_gpu. */
    fprintf(stderr, "Calculating blur on the GPU\n");
    compute_on_device(in, out_gpu);
 
@@ -90,16 +93,47 @@ int main(int argc, char **argv)
 /* Calculates the blur on the GPU */
 void compute_on_device(const image_t in, image_t out)
 {
-    dim3 threads(out.size, out.size, 1);
+    image_t d_in = allocate_on_device(in);
+    image_t d_out = allocate_on_device(out);
+
+    copy_to_device(d_in, in);
+
+    dim3 threads(THREAD_SIZE, THREAD_SIZE, 1);
     dim3 grid(out.size / threads.x, out.size / threads.y, 1);
 
-    blur_filter_kernel<<<grid, threads>>>(in.element, out.element, out.size);
+    blur_filter_kernel<<<grid, threads>>>(d_in.element, d_out.element, d_out.size);
     cudaError_t err = cudaGetLastError();
     if(cudaSuccess != err)
     {
 	fprintf(stderr, "Kernel execution failed: %s\n", cudaGetErrorString(err));
 	exit(EXIT_FAILURE);	
     }
+
+    copy_from_device(out, d_out);
+
+    cudaFree(d_in.element);
+    cudaFree(d_out.element);
+}
+
+image_t allocate_on_device(image_t image)
+{
+    image_t image_device = image;
+    int size = image.size * image.size * sizeof(float);
+    cudaMalloc((void**)&image_device.element, size);
+    return image_device;
+}
+
+void copy_to_device(image_t image_device, image_t image_host)
+{
+    int size = image_host.size * image_host.size * sizeof(float);
+    image_device.size = image_host.size;
+    cudaMemcpy(image_device.element, image_host.element, size, cudaMemcpyHostToDevice);
+}
+
+void copy_from_device(image_t image_host, image_t image_device)
+{
+    int size = image_host.size * image_host.size * sizeof(float);
+    cudaMemcpy(image_host.element, image_device.element, size, cudaMemcpyDeviceToHost);
 }
 
 /* Check correctness of results */

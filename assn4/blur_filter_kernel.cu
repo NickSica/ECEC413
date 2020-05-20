@@ -8,8 +8,8 @@
 __global__ void blur_filter_kernel (const float *in, float *out, int size)
 {
     int curr_row, curr_col;
-    int row = blockIdx.y * blockDim.y + threadIdx.y;   // was pix / size;             /* Obtain row number of pixel */
-    int col = blockIdx.x * blockDim.x + threadIdx.x;   // was pix % size;           /* Obtain column number of pixel */
+    int row = blockIdx.y * blockDim.y + threadIdx.y;   /* Obtain row number of pixel */
+    int col = blockIdx.x * blockDim.x + threadIdx.x;   /* Obtain column number of pixel */
 
     /* Apply blur filter to current pixel */
     float blur_value = 0.0;
