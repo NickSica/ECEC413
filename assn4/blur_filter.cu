@@ -8,7 +8,7 @@
     Date created: May 3, 2019
     Date modified: May 12, 2020
 
-    FIXME: Student name(s)
+    Student names: Nicholas Sica and Cameron Calv
 */
 
 #include <stdlib.h>
@@ -87,10 +87,19 @@ int main(int argc, char **argv)
     exit(EXIT_SUCCESS);
 }
 
-/* FIXME: Complete this function to calculate the blur on the GPU */
+/* Calculates the blur on the GPU */
 void compute_on_device(const image_t in, image_t out)
 {
-    return;
+    dim3 threads(out.size, out.size, 1);
+    dim3 grid(out.size / threads.x, out.size / threads.y, 1);
+
+    blur_filter_kernel<<<grid, threads>>>(in.element, out.element, out.size);
+    cudaError_t err = cudaGetLastError();
+    if(cudaSuccess != err)
+    {
+	fprintf(stderr, "Kernel execution failed: %s\n", cudaGetErrorString(err));
+	exit(EXIT_FAILURE);	
+    }
 }
 
 /* Check correctness of results */
