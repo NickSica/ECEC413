@@ -54,13 +54,20 @@ int main(int argc, char **argv)
 
     /* Poplulate our image with random values between [-0.5 +0.5] */
     srand(time(NULL));
+    float exec_time;
+    struct timeval start, stop;
+
     int i;
     for (i = 0; i < size * size; i++)
         in.element[i] = rand()/(float)RAND_MAX -  0.5;
   
    /* Calculate the blur on the CPU. The result is stored in out_gold. */
     fprintf(stderr, "Calculating blur on the CPU\n"); 
+    gettimeofday(&start, NULL);
     compute_gold(in, out_gold); 
+    gettimeofday(&stop, NULL);
+    exec_time = (float)(stop.tv_sec - start.tv_sec + (stop.tv_usec - start.tv_usec) / (float)1000000);
+    printf("Gold Execution Time: %f\n", exec_time);
 
 #ifdef DEBUG 
    print_image(in);
@@ -69,7 +76,11 @@ int main(int argc, char **argv)
 
    /* Calculates the blur on the GPU. The result is stored in out_gpu. */
    fprintf(stderr, "Calculating blur on the GPU\n");
+   gettimeofday(&start, NULL);
    compute_on_device(in, out_gpu);
+   gettimeofday(&stop, NULL);
+   exec_time = (float)(stop.tv_sec - start.tv_sec + (stop.tv_usec - start.tv_usec) / (float)1000000);
+   printf("GPU Execution Time: %f\n", exec_time);
 
    /* Check CPU and GPU results for correctness */
    fprintf(stderr, "Checking CPU and GPU results\n");
