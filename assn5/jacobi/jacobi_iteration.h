@@ -7,7 +7,7 @@
 
 #define THREAD_BLOCK_SIZE 128            /* Size of a thread block */
 
-#define MATRIX_SIZE 1024
+#define MATRIX_SIZE 256
 #define NUM_COLUMNS MATRIX_SIZE         /* Number of columns in matrix A */
 #define NUM_ROWS MATRIX_SIZE            /* Number of rows in matrix A */
 

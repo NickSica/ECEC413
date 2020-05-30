@@ -23,66 +23,145 @@
 
 int main(int argc, char **argv) 
 {
-	if (argc > 1) {
-		printf("This program accepts no arguments\n");
-		exit(EXIT_FAILURE);
-	}
+    if (argc > 1)
+    {
+	printf("This program accepts no arguments\n");
+	exit(EXIT_FAILURE);
+    }
 
     matrix_t  A;                    /* N x N constant matrix */
-	matrix_t  B;                    /* N x 1 b matrix */
-	matrix_t reference_x;           /* Reference solution */ 
-	matrix_t gpu_naive_solution_x;  /* Solution computed by naive kernel */
+    matrix_t  B;                    /* N x 1 b matrix */
+    matrix_t reference_x;           /* Reference solution */ 
+    matrix_t gpu_naive_solution_x;  /* Solution computed by naive kernel */
     matrix_t gpu_opt_solution_x;    /* Solution computed by optimized kernel */
-
-	/* Initialize the random number generator */
-	srand(time(NULL));
-
-	/* Generate diagonally dominant matrix */ 
+    
+    /* Initialize the random number generator */
+    srand(time(NULL));
+    
+    /* Generate diagonally dominant matrix */ 
     printf("\nGenerating %d x %d system\n", MATRIX_SIZE, MATRIX_SIZE);
-	A = create_diagonally_dominant_matrix(MATRIX_SIZE, MATRIX_SIZE);
-	if (A.elements == NULL) {
+    A = create_diagonally_dominant_matrix(MATRIX_SIZE, MATRIX_SIZE);
+    if (A.elements == NULL)
+    {
         printf("Error creating matrix\n");
         exit(EXIT_FAILURE);
-	}
-	
+    }
+    
     /* Create the other vectors */
     B = allocate_matrix_on_host(MATRIX_SIZE, 1, 1);
-	reference_x = allocate_matrix_on_host(MATRIX_SIZE, 1, 0);
-	gpu_naive_solution_x = allocate_matrix_on_host(MATRIX_SIZE, 1, 0);
+    reference_x = allocate_matrix_on_host(MATRIX_SIZE, 1, 0);
+    gpu_naive_solution_x = allocate_matrix_on_host(MATRIX_SIZE, 1, 0);
     gpu_opt_solution_x = allocate_matrix_on_host(MATRIX_SIZE, 1, 0);
 
 #ifdef DEBUG
-	print_matrix(A);
-	print_matrix(B);
-	print_matrix(reference_x);
+    print_matrix(A);
+    print_matrix(B);
+    print_matrix(reference_x);
 #endif
-
+	
     /* Compute Jacobi solution on CPU */
-	printf("\nPerforming Jacobi iteration on the CPU\n");
+    printf("\nPerforming Jacobi iteration on the CPU\n");
     compute_gold(A, reference_x, B);
     display_jacobi_solution(A, reference_x, B); /* Display statistics */
-	
-	/* Compute Jacobi solution on device. Solutions are returned 
+    
+    /* Compute Jacobi solution on device. Solutions are returned 
        in gpu_naive_solution_x and gpu_opt_solution_x. */
     printf("\nPerforming Jacobi iteration on device\n");
-	compute_on_device(A, gpu_naive_solution_x, gpu_opt_solution_x, B);
+    compute_on_device(A, gpu_naive_solution_x, gpu_opt_solution_x, B);
     display_jacobi_solution(A, gpu_naive_solution_x, B); /* Display statistics */
     display_jacobi_solution(A, gpu_opt_solution_x, B); 
     
     free(A.elements); 
-	free(B.elements); 
-	free(reference_x.elements); 
-	free(gpu_naive_solution_x.elements);
+    free(B.elements); 
+    free(reference_x.elements); 
+    free(gpu_naive_solution_x.elements);
     free(gpu_opt_solution_x.elements);
 	
     exit(EXIT_SUCCESS);
 }
 
 
-/* FIXME: Complete this function to perform Jacobi calculation on device */
-void compute_on_device(const matrix_t A, matrix_t gpu_naive_sol_x, 
-                       matrix_t gpu_opt_sol_x, const matrix_t B)
+/* Perform Jacobi calculation on device */
+void compute_on_device(const matrix_t A, matrix_t gpu_naive_sol_x, matrix_t gpu_opt_sol_x, const matrix_t B)
 {
+    /* Allocate n x 1 matrix to hold iteration values */
+    double ssd = 0.0;
+
+    matrix_t d_A = allocate_matrix_on_device(A);
+    matrix_t d_B = allocate_matrix_on_device(B);
+    matrix_t d_naive_x = allocate_matrix_on_device(gpu_naive_sol_x);
+    double d_ssd = ssd;
+    cudaMalloc((void **)&d_ssd, sizeof(double));
+
+    /* Initialize current naive jacobi solution */
+    for (int i = 0; i < A.num_rows; i++)
+        gpu_naive_sol_x.elements[i] = B.elements[i];
+
+    copy_matrix_to_device(d_A, A);
+    copy_matrix_to_device(d_B, B);
+    copy_matrix_to_device(d_naive_x, gpu_naive_sol_x);
+
+    dim3 threads(MATRIX_SIZE, 1, 1);
+    dim3 grid(MATRIX_SIZE, 1);
+    
+    /* Perform Naive Jacobi iteration */
+    unsigned int done = 0;
+    double mse;
+    unsigned int num_iter = 0;
+    while (!done)
+    {
+	//cudaMemset((void *)&d_ssd, 0, sizeof(double));
+	jacobi_iteration_kernel_naive<<<grid, threads>>>(d_A.elements, d_B.elements, d_A.num_columns, d_A.num_rows, d_naive_x.elements, &d_ssd);
+	cudaDeviceSynchronize();
+	check_CUDA_error("Naive Kernel Failure");
+
+        cudaMemcpy(&ssd, &d_ssd, sizeof(double), cudaMemcpyDeviceToHost);
+       
+        num_iter++;
+        mse = sqrt(ssd); /* Mean squared error. */
+	printf("SSD: %f\n", ssd);
+	printf("Iteration: %d. MSE = %f\n", num_iter, mse); 
+        
+        if (mse <= THRESHOLD)
+            done = 1;
+    }
+
+    copy_matrix_from_device(gpu_naive_sol_x, d_naive_x);
+    cudaFree(d_naive_x.elements);
+    printf("\nNaive convergence achieved after %d iterations \n", num_iter);
+
+    matrix_t d_opt_x = allocate_matrix_on_device(gpu_opt_sol_x);
+    /* Initialize current optimized jacobi solution */
+    for (int i = 0; i < B.num_rows; i++)
+        gpu_opt_sol_x.elements[i] = B.elements[i];
+
+    /* Perform Optimized Jacobi iteration */
+    done = 1;
+    num_iter = 0;
+    while (!done)
+    {
+	cudaMemset(&d_ssd, 0, sizeof(double));
+	check_CUDA_error("CUDA Memset");
+	
+	jacobi_iteration_kernel_optimized<<<grid, threads>>>(d_A.elements, d_B.elements, d_A.num_columns, d_A.num_rows, d_opt_x.elements, &d_ssd);
+	cudaDeviceSynchronize();
+	check_CUDA_error("Optimized Kernel Failure");
+	
+        num_iter++;
+        mse = sqrt(ssd); /* Mean squared error. */
+        printf("Iteration: %d. MSE = %f\n", num_iter, mse); 
+        
+        if (mse <= THRESHOLD)
+            done = 1;
+    }
+    
+    copy_matrix_from_device(gpu_opt_sol_x, d_opt_x);
+    printf("\nOptimized convergence achieved after %d iterations \n", num_iter);
+    
+    cudaFree(d_A.elements);
+    cudaFree(d_B.elements);
+    cudaFree(d_naive_x.elements);
+    cudaFree(d_opt_x.elements);
     return;
 }
 
@@ -106,13 +185,13 @@ matrix_t allocate_matrix_on_host(int num_rows, int num_columns, int init)
     M.num_rows = num_rows;
     int size = M.num_rows * M.num_columns;
 		
-	M.elements = (float *)malloc(size * sizeof(float));
-	for (unsigned int i = 0; i < size; i++) {
-		if (init == 0) 
+    M.elements = (float *)malloc(size * sizeof(float));
+    for (unsigned int i = 0; i < size; i++) {
+	if (init == 0) 
             M.elements[i] = 0; 
-		else
+	else
             M.elements[i] = get_random_number(MIN_NUMBER, MAX_NUMBER);
-	}
+    }
     
     return M;
 }	
