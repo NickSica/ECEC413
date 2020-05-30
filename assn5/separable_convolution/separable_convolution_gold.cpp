@@ -75,8 +75,8 @@ void convolve_rows(float *result, float *input, float *kernel,\
 }
 
 /* Column convolution filter */
-void convolve_columns(float *result, float *input, float *kernel,\
-                  int num_cols, int num_rows, int half_width)
+void convolve_columns(float *result, float *input, float *kernel, \
+		      int num_cols, int num_rows, int half_width)
 {
     int i, i1;
     int j, j1, j2;
