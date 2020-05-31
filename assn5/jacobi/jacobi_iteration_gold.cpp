@@ -5,8 +5,7 @@
 #include <sys/time.h>
 #include "jacobi_iteration.h"
 
-//void
-int compute_gold(const matrix_t A, matrix_t x, const matrix_t B)
+void compute_gold(const matrix_t A, matrix_t x, const matrix_t B)
 {
     unsigned int i, j, k;
     unsigned int num_rows = A.num_rows;
@@ -74,7 +73,6 @@ int compute_gold(const matrix_t A, matrix_t x, const matrix_t B)
     printf("Gold execution time = %fs\n", (float)(stop.tv_sec - start.tv_sec + (stop.tv_usec - start.tv_usec) / (float)1000000));
 
     free(new_x.elements);
-    return num_iter;
 }
     
 /* Display statistics related to the Jacobi solution */

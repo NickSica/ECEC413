@@ -8,7 +8,7 @@
 #define THREAD_BLOCK_1D_SIZE 1024 /* Size of a 1D thread block */
 #define THREAD_BLOCK_2D_SIZE 32            /* Size of a 2D thread block */
 
-#define MATRIX_SIZE 1024
+#define MATRIX_SIZE 2048
 #define NUM_COLUMNS MATRIX_SIZE         /* Number of columns in matrix A */
 #define NUM_ROWS MATRIX_SIZE            /* Number of rows in matrix A */
 
@@ -22,10 +22,7 @@ typedef struct matrix_s {
 }  matrix_t;
 
 /* Function prototypes */
-//extern "C" void compute_gold(const matrix_t, matrix_t, const matrix_t);
-extern "C" int compute_gold(const matrix_t, matrix_t, const matrix_t);
-void compute_on_device_naive(const matrix_t, matrix_t, const matrix_t, int);
-
+extern "C" void compute_gold(const matrix_t, matrix_t, const matrix_t);
 extern "C" void display_jacobi_solution(const matrix_t, const matrix_t, const matrix_t);
 matrix_t allocate_matrix_on_device(const matrix_t);
 matrix_t allocate_matrix_on_host(int, int, int);
@@ -33,7 +30,7 @@ int check_if_diagonal_dominant(const matrix_t);
 matrix_t create_diagonally_dominant_matrix(unsigned int, unsigned int);
 void copy_matrix_to_device(matrix_t, const matrix_t);
 void copy_matrix_from_device(matrix_t, const matrix_t);
-//void compute_on_device_naive(const matrix_t, matrix_t, const matrix_t);
+void compute_on_device_naive(const matrix_t, matrix_t, const matrix_t);
 void compute_on_device_opt(const matrix_t, matrix_t, const matrix_t);
 int perform_simple_check(const matrix_t);
 void print_matrix(const matrix_t);

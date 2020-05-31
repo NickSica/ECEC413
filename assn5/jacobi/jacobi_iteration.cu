@@ -61,13 +61,13 @@ int main(int argc, char **argv)
     
     /* Compute Jacobi solution on CPU */
     printf("\nPerforming Jacobi iteration on the CPU\n");
-    int num_iters = compute_gold(A, reference_x, B);
+    compute_gold(A, reference_x, B);
     display_jacobi_solution(A, reference_x, B); /* Display statistics */
     
     /* Compute Jacobi solution on device. Solutions are returned 
        in gpu_naive_solution_x and gpu_opt_solution_x. */
     printf("\n\nPerforming Naive Jacobi iteration on device\n");
-    compute_on_device_naive(A, gpu_naive_solution_x, B, num_iters);
+    compute_on_device_naive(A, gpu_naive_solution_x, B);
     display_jacobi_solution(A, gpu_naive_solution_x, B); /* Display statistics */
 
     printf("\n\nPerforming Optimized Jacobi iteration on device\n");
@@ -85,26 +85,32 @@ int main(int argc, char **argv)
 
 
 /* Perform Jacobi calculation on device using naive kernel*/
-void compute_on_device_naive(const matrix_t A, matrix_t gpu_sol_x, const matrix_t B, int num_iters)
+void compute_on_device_naive(const matrix_t A, matrix_t gpu_sol_x, const matrix_t B)
 {
-    matrix_t d_A = allocate_matrix_on_device(A);
-    matrix_t d_B = allocate_matrix_on_device(B);
-    matrix_t d_gpu_sol_x = allocate_matrix_on_device(gpu_sol_x);
-    double *d_ssd;
-    cudaMalloc((void **)&d_ssd, sizeof(double));
-
     /* Initialize current naive jacobi solution */
     for (int i = 0; i < A.num_rows; i++)
         gpu_sol_x.elements[i] = B.elements[i];
+    
+    // Setup thread blocks
+    int num_threads = min((int)THREAD_BLOCK_1D_SIZE, (int)MATRIX_SIZE);
+    dim3 threads(num_threads, 1, 1);
+    dim3 grid(MATRIX_SIZE / threads.x, 1);
+
+    // Setup device variables
+    matrix_t d_A = allocate_matrix_on_device(A);
+    matrix_t d_B = allocate_matrix_on_device(B);
+    matrix_t d_gpu_sol_x = allocate_matrix_on_device(gpu_sol_x);
+    int *d_mutex;
+    double *d_ssd;
+
+    cudaMalloc((void **)&d_mutex, sizeof(int));
+    cudaMemset(d_mutex, 0, sizeof(int));
+    cudaMalloc((void **)&d_ssd, sizeof(double));
 
     copy_matrix_to_device(d_A, A);
     copy_matrix_to_device(d_B, B);
     copy_matrix_to_device(d_gpu_sol_x, gpu_sol_x);
     check_CUDA_error("Kernel Setup Failure");
-    int num_threads = min((int)THREAD_BLOCK_1D_SIZE, (int)MATRIX_SIZE);
-    
-    dim3 threads(num_threads, 1, 1);
-    dim3 grid(MATRIX_SIZE / threads.x, 1);
     
     /* Perform Naive Jacobi iteration */
     unsigned int done = 0;
@@ -117,7 +123,7 @@ void compute_on_device_naive(const matrix_t A, matrix_t gpu_sol_x, const matrix_
 	cudaMemset(d_ssd, 0, sizeof(double));
 	check_CUDA_error("CUDA Memset Failure");
 
-	jacobi_iteration_kernel_naive<<<grid, threads>>>(d_A.elements, d_B.elements, d_A.num_columns, d_A.num_rows, d_gpu_sol_x.elements, d_ssd);
+	jacobi_iteration_kernel_naive<<<grid, threads>>>(d_A.elements, d_B.elements, d_A.num_columns, d_A.num_rows, d_gpu_sol_x.elements, d_ssd, d_mutex);
 	cudaDeviceSynchronize();
 	check_CUDA_error("Kernel Launch Failure");
 
@@ -142,6 +148,7 @@ void compute_on_device_naive(const matrix_t A, matrix_t gpu_sol_x, const matrix_
     cudaFree(d_gpu_sol_x.elements);
     cudaFree(d_A.elements);
     cudaFree(d_B.elements);
+    cudaFree(d_mutex);
     cudaFree(d_ssd);
 
     return;
@@ -166,7 +173,11 @@ void compute_on_device_opt(const matrix_t A, matrix_t gpu_sol_x, const matrix_t 
     // Setup device variables
     matrix_t d_B = allocate_matrix_on_device(B);
     matrix_t d_gpu_sol_x = allocate_matrix_on_device(gpu_sol_x);
+    int *d_mutex;
     double *d_ssd;
+    
+    cudaMalloc((void **)&d_mutex, sizeof(int));
+    cudaMemset(d_mutex, 0, sizeof(int));
     cudaMalloc((void **)&d_ssd, sizeof(double));
         
     /* Initialize current optimized jacobi solution */
@@ -192,7 +203,7 @@ void compute_on_device_opt(const matrix_t A, matrix_t gpu_sol_x, const matrix_t 
 	cudaMemset(d_ssd, 0, sizeof(double));
 	check_CUDA_error("CUDA Memset Failure");
 	
-	jacobi_iteration_kernel_optimized<<<grid, threads>>>(d_col_major_A.elements, d_B.elements, d_col_major_A.num_columns, d_col_major_A.num_rows, d_gpu_sol_x.elements, d_ssd);
+	jacobi_iteration_kernel_optimized<<<grid, threads>>>(d_col_major_A.elements, d_B.elements, d_col_major_A.num_columns, d_col_major_A.num_rows, d_gpu_sol_x.elements, d_ssd, d_mutex);
 	cudaDeviceSynchronize();
 	check_CUDA_error("Optimized Kernel Launch Failure");
 
@@ -217,6 +228,7 @@ void compute_on_device_opt(const matrix_t A, matrix_t gpu_sol_x, const matrix_t 
     cudaFree(d_A.elements);
     cudaFree(d_B.elements);
     cudaFree(d_gpu_sol_x.elements);
+    cudaFree(d_mutex);
     cudaFree(d_ssd);
 }
 
