@@ -101,7 +101,7 @@ void compute_on_device_naive(const matrix_t A, matrix_t gpu_sol_x, const matrix_
     copy_matrix_to_device(d_B, B);
     copy_matrix_to_device(d_gpu_sol_x, gpu_sol_x);
     check_CUDA_error("Kernel Setup Failure");
-    int num_threads = min((int)THREAD_BLOCK_SIZE, (int)MATRIX_SIZE);
+    int num_threads = min((int)THREAD_BLOCK_1D_SIZE, (int)MATRIX_SIZE);
     
     dim3 threads(num_threads, 1, 1);
     dim3 grid(MATRIX_SIZE / threads.x, 1);
@@ -156,7 +156,7 @@ void compute_on_device_opt(const matrix_t A, matrix_t gpu_sol_x, const matrix_t 
     copy_matrix_to_device(d_A, A);
     copy_matrix_to_device(d_col_major_A, col_major_A);
 
-    int num_threads = min((int)THREAD_BLOCK_SIZE / 4, (int)MATRIX_SIZE);
+    int num_threads = min((int)THREAD_BLOCK_2D_SIZE, (int)MATRIX_SIZE);
     dim3 row_to_col_threads(num_threads, num_threads, 1);
     dim3 row_to_col_grid(MATRIX_SIZE / row_to_col_threads.x, MATRIX_SIZE / row_to_col_threads.y, 1);
     row_to_col_major_kernel<<<row_to_col_grid, row_to_col_threads>>>(d_A.elements, d_A.num_columns, d_A.num_rows, d_col_major_A.elements);
@@ -177,7 +177,7 @@ void compute_on_device_opt(const matrix_t A, matrix_t gpu_sol_x, const matrix_t 
     copy_matrix_to_device(d_gpu_sol_x, gpu_sol_x);
     check_CUDA_error("Kernel Setup Failure");
 
-    num_threads = min((int)THREAD_BLOCK_SIZE, (int)MATRIX_SIZE);
+    num_threads = min((int)THREAD_BLOCK_1D_SIZE, (int)MATRIX_SIZE);
     dim3 threads(num_threads, 1, 1);
     dim3 grid(MATRIX_SIZE / threads.x, 1);
     

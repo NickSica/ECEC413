@@ -5,13 +5,14 @@
 #define MIN_NUMBER 2        /* Min number in the A and b matrices */
 #define MAX_NUMBER 10       /* Max number in the A and b matrices */
 
-#define THREAD_BLOCK_SIZE 128            /* Size of a thread block */
+#define THREAD_BLOCK_1D_SIZE 1024 /* Size of a 1D thread block */
+#define THREAD_BLOCK_2D_SIZE 32            /* Size of a 2D thread block */
 
 #define MATRIX_SIZE 1024
 #define NUM_COLUMNS MATRIX_SIZE         /* Number of columns in matrix A */
 #define NUM_ROWS MATRIX_SIZE            /* Number of rows in matrix A */
 
-#define DISPLAY_ITERS                   // Display iteration information
+//#define DISPLAY_ITERS                   // Display iteration information
 
 /* Matrix structure declaration */
 typedef struct matrix_s {
