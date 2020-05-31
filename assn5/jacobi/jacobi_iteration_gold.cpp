@@ -2,9 +2,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <sys/time.h>
 #include "jacobi_iteration.h"
 
-void compute_gold(const matrix_t A, matrix_t x, const matrix_t B)
+//void
+int compute_gold(const matrix_t A, matrix_t x, const matrix_t B)
 {
     unsigned int i, j, k;
     unsigned int num_rows = A.num_rows;
@@ -21,7 +23,8 @@ void compute_gold(const matrix_t A, matrix_t x, const matrix_t B)
     unsigned int done = 0;
     double ssd, mse;
     unsigned int num_iter = 0;
-    
+    struct timeval start, stop;
+    gettimeofday(&start, NULL);
     while (!done) {
         for (i = 0; i < num_rows; i++) {
             double sum = 0.0;
@@ -58,14 +61,20 @@ void compute_gold(const matrix_t A, matrix_t x, const matrix_t B)
         }
         num_iter++;
         mse = sqrt (ssd); /* Mean squared error. */
-        printf("Iteration: %d. MSE = %f\n", num_iter, mse); 
+#ifdef DISPLAY_ITERS
+        printf("Iteration: %d. MSE = %f\n", num_iter, mse);
+#endif
         
         if (mse <= THRESHOLD)
             done = 1;
     }
+    gettimeofday(&stop, NULL);
 
     printf("\nConvergence achieved after %d iterations \n", num_iter);
+    printf("Gold execution time = %fs\n", (float)(stop.tv_sec - start.tv_sec + (stop.tv_usec - start.tv_usec) / (float)1000000));
+
     free(new_x.elements);
+    return num_iter;
 }
     
 /* Display statistics related to the Jacobi solution */
