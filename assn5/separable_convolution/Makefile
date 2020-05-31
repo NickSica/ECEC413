@@ -23,4 +23,4 @@ separable_convolution: separable_convolution.cu separable_convolution_gold.cpp
 	$(NVCC) -o separable_convolution separable_convolution.cu separable_convolution_gold.cpp $(NVCCFLAGS)
 
 clean:
-	rm separable_convolution 
+	-rm separable_convolution 

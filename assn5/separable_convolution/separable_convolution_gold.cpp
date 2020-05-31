@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <sys/time.h>
 
 extern "C" void compute_gold(float *, float *, int, int, int);
 void convolve_rows(float *, float *, float *, int, int, int);
@@ -116,6 +117,9 @@ void compute_gold(float *matrix_a, float *kernel,\
     int num_elements = num_rows * num_cols;
     float *matrix_b = (float *)malloc(sizeof(float) * num_elements);
 
+    struct timeval start, stop;
+    gettimeofday(&start, NULL);
+    
     /* Convolve over rows: matrix_a is the input matrix and 
      * convolved matrix is stored in matrix_b
     */	 
@@ -128,5 +132,23 @@ void compute_gold(float *matrix_a, float *kernel,\
     printf("Convolving over columns\n");
     convolve_columns(matrix_a, matrix_b, kernel, num_cols, num_rows, half_width);
 
+    gettimeofday(&stop, NULL);
+    printf("Gold execution time = %fs\n", (float)(stop.tv_sec - start.tv_sec + (stop.tv_usec - start.tv_usec) / (float)1000000));
+    
     return;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
