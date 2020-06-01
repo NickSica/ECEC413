@@ -23,4 +23,4 @@ counting_sort: counting_sort.cu counting_sort_gold.cpp
 	$(NVCC) -o counting_sort counting_sort.cu counting_sort_gold.cpp $(NVCCFLAGS)
 
 clean:
-	rm counting_sort 
+	-rm counting_sort 

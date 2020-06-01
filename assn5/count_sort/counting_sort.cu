@@ -27,6 +27,7 @@ int rand_int(int, int);
 void print_array(int *, int);
 void print_min_and_max_in_array(int *, int);
 void compute_on_device(int *, int *, int, int);
+void check_for_error(const char *);
 int check_if_sorted(int *, int);
 int compare_results(int *, int *, int);
 
@@ -109,11 +110,59 @@ int main(int argc, char **argv)
 }
 
 
-/* FIXME: Write the GPU implementation of counting sort */
+/* GPU implementation of counting sort */
 void compute_on_device(int *input_array, int *sorted_array, int num_elements, int range)
 {
+    
+    int num_bins = range + 1;
+    int *bin = (int *)malloc(num_bins * sizeof(int));
+    memset(bin, 0, num_bins);
+
+    int *d_bin;
+    int *d_input_array;
+    int *d_sorted_array;
+    int size = num_elements * sizeof(int);
+    cudaMalloc(&d_bin, num_bins * sizeof(int));
+    cudaMalloc(&d_input_array, size);
+    cudaMalloc(&d_sorted_array, size);
+    check_for_error("CUDA Malloc Failure");
+    
+    cudaMemcpy(d_bin, bin, num_bins * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_sorted_array, sorted_array, size, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_input_array, input_array, size, cudaMemcpyHostToDevice);
+    check_for_error("CUDA Memcpy To Device Failure");
+
+    dim3 threads(num_bins, 1, 1);
+    dim3 grid(1, 1, 1);
+    
+    counting_sort_kernel<<<grid, threads>>>(d_bin, d_input_array, d_sorted_array, num_elements);
+    cudaDeviceSynchronize();
+    check_for_error("Kernel Launch Failure");
+
+    cudaMemcpy(sorted_array, d_sorted_array, size, cudaMemcpyDeviceToHost);
+    check_for_error("CUDA Memcpy From Device Failure");
+
+    print_array(input_array, num_elements);
+    print_array(sorted_array, num_elements);
+    
+    free(bin);
+    cudaFree(d_bin);
+    cudaFree(d_sorted_array);
     return;
 }
+
+/* Check for errors reported by the CUDA run time */
+void check_for_error(const char *msg)
+{
+    cudaError_t err = cudaGetLastError();
+    if (cudaSuccess != err)
+    {
+	printf("CUDA ERROR: %s (%s)\n", msg, cudaGetErrorString(err));
+	exit(EXIT_FAILURE);
+    }
+    
+    return;
+} 
 
 /* Check if array is sorted */
 int check_if_sorted(int *array, int num_elements)

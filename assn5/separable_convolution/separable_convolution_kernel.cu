@@ -66,7 +66,7 @@ __global__ void convolve_columns_kernel_naive(float *result, float *input, float
 
 __global__ void convolve_rows_kernel_optimized(float *result, float *input, int num_cols, int num_rows)
 {
-    /*
+    /* TODO: Get shared memory working
     const int num_cols_total = THREAD_BLOCK_SIZE + HALF_WIDTH * 2;
     __shared__ float input_s[num_cols_total * THREAD_BLOCK_SIZE];
 
@@ -122,18 +122,16 @@ __global__ void convolve_rows_kernel_optimized(float *result, float *input, int 
     
     // Convolve along row
     float res = 0.0f;
-    for(int j = col_start; j <= col_end; j++)
-    {
+    for(int j = col_start; j <= col_end; j++, row++)
 	res += kernel_c[j] * input[y * num_cols + x + row];
-	row++;
-    }
+
     result[y * num_cols + x] = res;
     return;
 }
 
 __global__ void convolve_columns_kernel_optimized(float *result, float *input, int num_cols, int num_rows)
 {
-    /*
+    /* TODO: Get shared memory working
     __shared__ float input_s[THREAD_BLOCK_SIZE + HALF_WIDTH * 2];
 
     // Load the upper halo elements of previous tile
@@ -186,11 +184,8 @@ __global__ void convolve_columns_kernel_optimized(float *result, float *input, i
 	
     // Convolve along column
     float res = 0.0f;
-    for(int j = row_start; j <= row_end; j++)
-    {
+    for(int j = row_start; j <= row_end; j++, col++)
 	res += kernel_c[j] * input[y * num_cols + x + (col * num_cols)];
-	col++;
-    }
 
     result[y * num_cols + x] = res;
     return;

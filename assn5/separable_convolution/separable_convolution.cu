@@ -17,7 +17,7 @@ void copy_from_device(float *, const float *, int, int);
 void compare_results(float *, float *, int);
 extern "C" void compute_gold(float *, float *, int, int, int);
 extern "C" float *create_kernel(float, int);
-void check_for_error(char *);
+void check_for_error(const char *);
 void print_kernel(float *, int);
 void print_matrix(float *, int, int);
 
@@ -234,7 +234,7 @@ void compare_results(float *expected, float *actual, int num_elements)
 }
 
 /* Check for errors reported by the CUDA run time */
-void check_for_error(char *msg)
+void check_for_error(const char *msg)
 {
     cudaError_t err = cudaGetLastError();
     if (cudaSuccess != err)

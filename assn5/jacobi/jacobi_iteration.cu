@@ -284,14 +284,14 @@ void copy_matrix_from_device(matrix_t Mhost, const matrix_t Mdevice)
 /* Prints the matrix out to screen */
 void print_matrix(const matrix_t M)
 {
-	for (unsigned int i = 0; i < M.num_rows; i++) {
-        for (unsigned int j = 0; j < M.num_columns; j++) {
-			printf("%f ", M.elements[i * M.num_rows + j]);
-        }
-		
-        printf("\n");
-	} 
+    for (unsigned int i = 0; i < M.num_rows; i++)
+    {
+	for (unsigned int j = 0; j < M.num_columns; j++)
+	    printf("%f ", M.elements[i * M.num_rows + j]);
 	
+	printf("\n");
+    }
+    
     printf("\n");
     return;
 }
@@ -300,17 +300,18 @@ void print_matrix(const matrix_t M)
 float get_random_number(int min, int max)
 {
     float r = rand()/(float)RAND_MAX;
-	return (float)floor((double)(min + (max - min + 1) * r));
+    return (float)floor((double)(min + (max - min + 1) * r));
 }
 
 /* Check for errors in kernel execution */
 void check_CUDA_error(const char *msg)
 {
-	cudaError_t err = cudaGetLastError();
-	if ( cudaSuccess != err) {
-		printf("CUDA ERROR: %s (%s).\n", msg, cudaGetErrorString(err));
-		exit(EXIT_FAILURE);
-	}	
+    cudaError_t err = cudaGetLastError();
+    if(cudaSuccess != err)
+    {
+	printf("CUDA ERROR: %s (%s).\n", msg, cudaGetErrorString(err));
+	exit(EXIT_FAILURE);
+    }	
     
     return;    
 }
@@ -318,29 +319,29 @@ void check_CUDA_error(const char *msg)
 /* Create diagonally dominant matrix */
 matrix_t create_diagonally_dominant_matrix(unsigned int num_rows, unsigned int num_columns)
 {
-	matrix_t M;
-	M.num_columns = num_columns;
-	M.num_rows = num_rows; 
-	unsigned int size = M.num_rows * M.num_columns;
-	M.elements = (float *)malloc(size * sizeof(float));
+    matrix_t M;
+    M.num_columns = num_columns;
+    M.num_rows = num_rows; 
+    unsigned int size = M.num_rows * M.num_columns;
+    M.elements = (float *)malloc(size * sizeof(float));
     if (M.elements == NULL)
         return M;
-
-	/* Create a matrix with random numbers between [-.5 and .5] */
+    
+    /* Create a matrix with random numbers between [-.5 and .5] */
     unsigned int i, j;
-	for (i = 0; i < size; i++)
+    for (i = 0; i < size; i++)
         M.elements[i] = get_random_number (MIN_NUMBER, MAX_NUMBER);
-	
-	/* Make diagonal entries large with respect to the entries on each row. */
-	for (i = 0; i < num_rows; i++) {
-		float row_sum = 0.0;		
-		for (j = 0; j < num_columns; j++) {
-			row_sum += fabs(M.elements[i * M.num_rows + j]);
-		}
-		
-        M.elements[i * M.num_rows + i] = 0.5 + row_sum;
+    
+    /* Make diagonal entries large with respect to the entries on each row. */
+    for (i = 0; i < num_rows; i++) {
+	float row_sum = 0.0;		
+	for (j = 0; j < num_columns; j++) {
+	    row_sum += fabs(M.elements[i * M.num_rows + j]);
 	}
-
+	
+	M.elements[i * M.num_rows + i] = 0.5 + row_sum;
+    }
+    
     return M;
 }
 
