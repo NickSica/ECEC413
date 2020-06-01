@@ -5,31 +5,8 @@
  * Compile as follows: make clean && make
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <time.h>
-#include <sys/time.h>
-#include <string.h>
-#include <math.h>
-#include <limits.h>
-
+#include "counting_sort.h"
 #include "counting_sort_kernel.cu"
-
-/* Do not change the range value */
-#define MIN_VALUE 0 
-#define MAX_VALUE 255
-
-/* Uncomment to spit out debug info */
-// #define DEBUG
-
-extern "C" int counting_sort_gold(int *, int *, int, int);
-int rand_int(int, int);
-void print_array(int *, int);
-void print_min_and_max_in_array(int *, int);
-void compute_on_device(int *, int *, int, int);
-void check_for_error(const char *);
-int check_if_sorted(int *, int);
-int compare_results(int *, int *, int);
 
 int main(int argc, char **argv)
 {
@@ -121,25 +98,32 @@ void compute_on_device(int *input_array, int *sorted_array, int num_elements, in
     int *d_bin;
     int *d_input_array;
     int *d_sorted_array;
-    int size = num_elements * sizeof(int);
-    cudaMalloc(&d_bin, num_bins * sizeof(int));
-    cudaMalloc(&d_input_array, size);
-    cudaMalloc(&d_sorted_array, size);
+    int input_size = num_elements * sizeof(int);
+    int bin_size = num_bins * sizeof(int);
+    cudaMalloc(&d_bin, bin_size);
+    cudaMalloc(&d_input_array, input_size);
+    cudaMalloc(&d_sorted_array, input_size);
     check_for_error("CUDA Malloc Failure");
     
-    cudaMemcpy(d_bin, bin, num_bins * sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_sorted_array, sorted_array, size, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_input_array, input_array, size, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_bin, bin, bin_size, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_sorted_array, sorted_array, input_size, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_input_array, input_array, input_size, cudaMemcpyHostToDevice);
     check_for_error("CUDA Memcpy To Device Failure");
 
-    dim3 threads(num_bins, 1, 1);
+    dim3 bins_threads(num_elements, 1, 1);
     dim3 grid(1, 1, 1);
     
-    counting_sort_kernel<<<grid, threads>>>(d_bin, d_input_array, d_sorted_array, num_elements);
+    generate_bins_kernel<<<grid, bins_threads>>>(d_bin, d_input_array);
     cudaDeviceSynchronize();
-    check_for_error("Kernel Launch Failure");
+    check_for_error("Bin Generation Kernel Launch Failure");
 
-    cudaMemcpy(sorted_array, d_sorted_array, size, cudaMemcpyDeviceToHost);
+    dim3 threads(num_bins, 1, 1);
+
+    counting_sort_kernel<<<grid, threads, 2 * bin_size>>>(d_bin, d_input_array, d_sorted_array, num_elements);
+    cudaDeviceSynchronize();
+    check_for_error("Counting Sort Kernel Launch Failure");
+
+    cudaMemcpy(sorted_array, d_sorted_array, input_size, cudaMemcpyDeviceToHost);
     check_for_error("CUDA Memcpy From Device Failure");
 
     print_array(input_array, num_elements);

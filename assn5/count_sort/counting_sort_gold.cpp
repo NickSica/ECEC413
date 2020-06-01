@@ -1,11 +1,4 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-
-// #define DEBUG
-
-extern "C" int counting_sort_gold(int *, int *, int, int);
-void print_histogram(int *, int, int);
+#include "counting_sort.h"
 
 /* Reference implementation of counting sort */
 int counting_sort_gold(int *input_array, int *sorted_array, int num_elements, int range)
