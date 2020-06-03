@@ -39,11 +39,14 @@ void compute_on_device_naive(float *gpu_result, float *matrix_c, \
 			     int num_rows, int half_width)
 {
     float *gpu_row_result = (float *)malloc(sizeof(float) * num_rows * num_cols);
-    
+    int kernel_width = half_width * 2 + 1;
+
     float *d_gpu_col_result = allocate_on_device(gpu_result, num_rows, num_cols);
     float *d_gpu_row_result = allocate_on_device(gpu_result, num_rows, num_cols);
-    float *d_kernel = allocate_on_device(kernel, num_rows, num_cols);
     float *d_matrix_c = allocate_on_device(matrix_c, num_rows, num_cols);
+    float *d_kernel;
+    cudaMalloc((void **)&d_kernel, kernel_width * sizeof(float));
+    check_for_error("Error allocating on device.");
 
     dim3 threads(THREAD_BLOCK_SIZE, THREAD_BLOCK_SIZE, 1);
     int num_thread_blocks_x = ceil((float)num_cols / (float)threads.x);
@@ -51,15 +54,18 @@ void compute_on_device_naive(float *gpu_result, float *matrix_c, \
     dim3 grid(num_thread_blocks_x, num_thread_blocks_y, 1);
 
     copy_to_device(d_matrix_c, matrix_c, num_rows, num_cols);
-    copy_to_device(d_kernel, kernel, num_rows, num_cols);
+    cudaMemcpy(d_kernel, kernel, kernel_width * sizeof(float), cudaMemcpyHostToDevice);
+    check_for_error("Error copying to device.");
 
     struct timeval start, stop;
     gettimeofday(&start, NULL);
 
+    printf("Convolving rows\n");
     convolve_rows_kernel_naive<<<grid, threads>>>(d_gpu_row_result, d_matrix_c, d_kernel, num_cols, num_rows);
     cudaDeviceSynchronize();
     check_for_error("Error launching naive row convolution.");
 
+    printf("Convolving columns\n");
     convolve_columns_kernel_naive<<<grid, threads>>>(d_gpu_col_result, d_gpu_row_result, d_kernel, num_cols, num_rows);
     cudaDeviceSynchronize();
     check_for_error("Error launching naive column convolution.");
@@ -100,11 +106,13 @@ void compute_on_device_optimized(float *gpu_result, float *matrix_c, \
     
     struct timeval start, stop;
     gettimeofday(&start, NULL);
-    
+
+    printf("Convolving rows\n");
     convolve_rows_kernel_optimized<<<grid, threads>>>(d_gpu_row_result, d_matrix_c, num_cols, num_rows);
     cudaDeviceSynchronize();
     check_for_error("Error launching optimized row convolution.");
 
+    printf("Convolving columns\n");
     convolve_columns_kernel_optimized<<<grid, threads>>>(d_gpu_col_result, d_gpu_row_result, num_cols, num_rows);
     cudaDeviceSynchronize();
     check_for_error("Error launching optimized column convolution.");
