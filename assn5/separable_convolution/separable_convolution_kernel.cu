@@ -66,7 +66,7 @@ __global__ void convolve_columns_kernel_naive(float *result, float *input, float
 
 __global__ void convolve_rows_kernel_optimized(float *result, float *input, int num_cols, int num_rows)
 {
-    /* TODO: Get shared memory working
+    // TODO: Get shared memory working
     const int num_cols_total = THREAD_BLOCK_SIZE + HALF_WIDTH * 2;
     __shared__ float input_s[num_cols_total * THREAD_BLOCK_SIZE];
 
@@ -99,7 +99,6 @@ __global__ void convolve_rows_kernel_optimized(float *result, float *input, int 
     }
 
     __syncthreads();
-    */
     
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int x = blockIdx.x * blockDim.x + threadIdx.x;
@@ -123,7 +122,8 @@ __global__ void convolve_rows_kernel_optimized(float *result, float *input, int 
     // Convolve along row
     float res = 0.0f;
     for(int j = col_start; j <= col_end; j++, row++)
-	res += kernel_c[j] * input[y * num_cols + x + row];
+	//res += kernel_c[j] * input_s[threadIdx.x + (blockDim.x + HALF_WIDTH) + row];
+	res += kernel_c[j] * input_s[HALF_WIDTH + threadIdx.x + row];
 
     result[y * num_cols + x] = res;
     return;
@@ -131,9 +131,12 @@ __global__ void convolve_rows_kernel_optimized(float *result, float *input, int 
 
 __global__ void convolve_columns_kernel_optimized(float *result, float *input, int num_cols, int num_rows)
 {
-    /* TODO: Get shared memory working
-    __shared__ float input_s[THREAD_BLOCK_SIZE + HALF_WIDTH * 2];
+    // TODO: Get shared memory working
+    const int num_rows_total = THREAD_BLOCK_SIZE + HALF_WIDTH * 2;
+    //__shared__ float input_s[THREAD_BLOCK_SIZE + HALF_WIDTH * 2];
+    __shared__ float input_s[num_rows_total * THREAD_BLOCK_SIZE];
 
+    int i = blockIdx.y * blockDim.y + threadIdx.y;
     // Load the upper halo elements of previous tile
     int upper_halo_idx = (blockIdx.y - 1) * blockDim.y + threadIdx.y;    
     if(threadIdx.y >= (blockDim.y - HALF_WIDTH))
@@ -145,8 +148,8 @@ __global__ void convolve_columns_kernel_optimized(float *result, float *input, i
     }
 
     // Load the center elements for the tile
-    if(x < num_rows)
-	input_s[HALF_WIDTH + threadIdx.y] = input[x];
+    if(i < num_rows)
+	input_s[HALF_WIDTH + threadIdx.y] = input[i];
     else
 	input_s[HALF_WIDTH + threadIdx.y] = 0.0;
 	
@@ -159,12 +162,10 @@ __global__ void convolve_columns_kernel_optimized(float *result, float *input, i
 	else
 	    input_s[threadIdx.y + (blockDim.y + HALF_WIDTH)] = input[lower_halo_idx];
     }
-
     __syncthreads();
-    */
     int row_start, row_end;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
     int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
     row_start = y - HALF_WIDTH;
     row_end = y + HALF_WIDTH;
     
@@ -185,8 +186,10 @@ __global__ void convolve_columns_kernel_optimized(float *result, float *input, i
     // Convolve along column
     float res = 0.0f;
     for(int j = row_start; j <= row_end; j++, col++)
-	res += kernel_c[j] * input[y * num_cols + x + (col * num_cols)];
-
+    {
+	//res += kernel_c[j] * input_s[threadIdx.y + (blockDim.y + HALF_WIDTH) + col];
+	res += kernel_c[j] * input_s[HALF_WIDTH + threadIdx.y + col];
+    }
     result[y * num_cols + x] = res;
     return;
 }
