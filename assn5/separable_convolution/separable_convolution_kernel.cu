@@ -1,5 +1,3 @@
-
-//#include <__clang_cuda_builtin_vars.h>
 __constant__ float kernel_c[2 * HALF_WIDTH + 1];
 
 __global__ void convolve_rows_kernel_naive(float *result, float *input, float *kernel, int num_cols, int num_rows)
@@ -66,40 +64,6 @@ __global__ void convolve_columns_kernel_naive(float *result, float *input, float
 
 __global__ void convolve_rows_kernel_optimized(float *result, float *input, int num_cols, int num_rows)
 {
-    // TODO: Get shared memory working
-    const int num_cols_total = THREAD_BLOCK_SIZE + HALF_WIDTH * 2;
-    __shared__ float input_s[num_cols_total * THREAD_BLOCK_SIZE];
-
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    
-    // Load the left halo elements of previous tile
-    int left_halo_idx = (blockIdx.x - 1) * blockDim.x + threadIdx.x;    
-    if(threadIdx.x >= (blockDim.x - HALF_WIDTH))
-    {
-	if(left_halo_idx < 0)
-	    input_s[threadIdx.x - (blockDim.x - HALF_WIDTH)] = 0.0;
-	else
-	    input_s[threadIdx.x - (blockDim.x - HALF_WIDTH)] = input[left_halo_idx];
-    }
-
-    // Load the center elements for the tile
-    if(i < num_cols)
-	input_s[HALF_WIDTH + threadIdx.x] = input[i];
-    else
-	input_s[HALF_WIDTH + threadIdx.x] = 0.0;
-	
-    // Load the right halo elements of previous tile
-    int right_halo_idx = (blockIdx.x + 1) * blockDim.x + threadIdx.x;    
-    if(threadIdx.x < HALF_WIDTH)
-    {
-	if(right_halo_idx >= num_cols)
-	    input_s[threadIdx.x + (blockDim.x + HALF_WIDTH)] = 0.0;
-	else
-	    input_s[threadIdx.x + (blockDim.x + HALF_WIDTH)] = input[right_halo_idx];
-    }
-
-    __syncthreads();
-    
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int col_start = x - HALF_WIDTH;
@@ -122,8 +86,7 @@ __global__ void convolve_rows_kernel_optimized(float *result, float *input, int 
     // Convolve along row
     float res = 0.0f;
     for(int j = col_start; j <= col_end; j++, row++)
-	//res += kernel_c[j] * input_s[threadIdx.x + (blockDim.x + HALF_WIDTH) + row];
-	res += kernel_c[j] * input_s[HALF_WIDTH + threadIdx.x + row];
+	res += kernel_c[j] * input[y * num_cols + x + row];
 
     result[y * num_cols + x] = res;
     return;
@@ -131,43 +94,10 @@ __global__ void convolve_rows_kernel_optimized(float *result, float *input, int 
 
 __global__ void convolve_columns_kernel_optimized(float *result, float *input, int num_cols, int num_rows)
 {
-    // TODO: Get shared memory working
-    const int num_rows_total = THREAD_BLOCK_SIZE + HALF_WIDTH * 2;
-    //__shared__ float input_s[THREAD_BLOCK_SIZE + HALF_WIDTH * 2];
-    __shared__ float input_s[num_rows_total * THREAD_BLOCK_SIZE];
-
-    int i = blockIdx.y * blockDim.y + threadIdx.y;
-    // Load the upper halo elements of previous tile
-    int upper_halo_idx = (blockIdx.y - 1) * blockDim.y + threadIdx.y;    
-    if(threadIdx.y >= (blockDim.y - HALF_WIDTH))
-    {
-	if(upper_halo_idx < 0)
-	    input_s[threadIdx.y - (blockDim.y - HALF_WIDTH)] = 0.0;
-	else
-	    input_s[threadIdx.y - (blockDim.y - HALF_WIDTH)] = input[upper_halo_idx];
-    }
-
-    // Load the center elements for the tile
-    if(i < num_rows)
-	input_s[HALF_WIDTH + threadIdx.y] = input[i];
-    else
-	input_s[HALF_WIDTH + threadIdx.y] = 0.0;
-	
-    // Load the lower halo elements of previous tile
-    int lower_halo_idx = (blockIdx.y + 1) * blockDim.y + threadIdx.y;    
-    if(threadIdx.y < HALF_WIDTH)
-    {
-	if(lower_halo_idx >= num_rows)
-	    input_s[threadIdx.y + (blockDim.y + HALF_WIDTH)] = 0.0;
-	else
-	    input_s[threadIdx.y + (blockDim.y + HALF_WIDTH)] = input[lower_halo_idx];
-    }
-    __syncthreads();
-    int row_start, row_end;
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
-    row_start = y - HALF_WIDTH;
-    row_end = y + HALF_WIDTH;
+    int row_start = y - HALF_WIDTH;
+    int row_end = y + HALF_WIDTH;
     
     // Clamp at the edges of the matrix
     if(row_start < 0) 
@@ -186,10 +116,8 @@ __global__ void convolve_columns_kernel_optimized(float *result, float *input, i
     // Convolve along column
     float res = 0.0f;
     for(int j = row_start; j <= row_end; j++, col++)
-    {
-	//res += kernel_c[j] * input_s[threadIdx.y + (blockDim.y + HALF_WIDTH) + col];
-	res += kernel_c[j] * input_s[HALF_WIDTH + threadIdx.y + col];
-    }
+	res += kernel_c[j] * input[y * num_cols + x + (col * num_cols)];
+
     result[y * num_cols + x] = res;
     return;
 }
